@@ -470,6 +470,7 @@ async function handleUploadGame(req, res) {
   const categoryPart = parts.find(p => p.name === 'category_id');
   const descPart = parts.find(p => p.name === 'description');
   const romPart = parts.find(p => p.name === 'rom');
+  const coverPart = parts.find(p => p.name === 'cover');
 
   if (!titlePart || !titlePart.value) {
     return res.status(400).json(error('游戏名称不能为空'));
@@ -494,16 +495,41 @@ async function handleUploadGame(req, res) {
     return res.status(400).json(error(`该游戏已存在：${existing.title}`));
   }
 
-  const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.nes`;
+  // 上传 ROM 文件
+  const romFileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.nes`;
   const { error: uploadError } = await supabaseAdmin.storage
     .from('roms')
-    .upload(fileName, romPart.data, {
+    .upload(romFileName, romPart.data, {
       contentType: 'application/octet-stream',
     });
 
   if (uploadError) {
     console.error('ROM 上传错误:', uploadError);
-    return res.status(500).json(error('文件上传失败', 500));
+    return res.status(500).json(error('ROM 文件上传失败', 500));
+  }
+
+  // 上传封面图片（如果有）
+  let coverPath = null;
+  if (coverPart && coverPart.data) {
+    const coverExt = coverPart.filename ? coverPart.filename.split('.').pop() : 'png';
+    const coverFileName = `cover-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${coverExt}`;
+    const coverContentType = coverPart.contentType || 'image/png';
+
+    const { error: coverUploadError } = await supabaseAdmin.storage
+      .from('covers')
+      .upload(coverFileName, coverPart.data, {
+        contentType: coverContentType,
+      });
+
+    if (!coverUploadError) {
+      // 获取封面图的公开 URL
+      const { data: coverUrlData } = supabaseAdmin.storage
+        .from('covers')
+        .getPublicUrl(coverFileName);
+      coverPath = coverUrlData?.publicUrl || null;
+    } else {
+      console.error('封面上传错误:', coverUploadError);
+    }
   }
 
   const { data: statusSetting } = await supabaseAdmin
@@ -522,7 +548,8 @@ async function handleUploadGame(req, res) {
       title,
       category_id,
       description,
-      rom_path: fileName,
+      rom_path: romFileName,
+      cover_path: coverPath,
       file_size: romPart.data.length,
       file_md5: md5,
       uploader_id: user.id,
@@ -1137,7 +1164,7 @@ async function handleAdminCreateGame(req, res) {
   const contentType = req.headers['content-type'] || '';
   const boundaryMatch = contentType.match(/boundary=(.+)/);
 
-  let title, category_id, description, gameStatus, romData;
+  let title, category_id, description, gameStatus, romData, coverData, coverFilename, coverContentType;
 
   if (boundaryMatch) {
     const boundary = boundaryMatch[1];
@@ -1148,12 +1175,16 @@ async function handleAdminCreateGame(req, res) {
     const descPart = parts.find(p => p.name === 'description');
     const statusPart = parts.find(p => p.name === 'status');
     const romPart = parts.find(p => p.name === 'rom');
+    const coverPart = parts.find(p => p.name === 'cover');
 
     title = titlePart?.value;
     category_id = categoryPart?.value ? Number(categoryPart.value) : null;
     description = descPart?.value || '';
     gameStatus = statusPart?.value || 'approved';
     romData = romPart?.data;
+    coverData = coverPart?.data;
+    coverFilename = coverPart?.filename;
+    coverContentType = coverPart?.contentType;
   } else {
     const body = JSON.parse(buffer.toString());
     title = body.title;
@@ -1177,7 +1208,7 @@ async function handleAdminCreateGame(req, res) {
       .upload(fileName, romData, { contentType: 'application/octet-stream' });
 
     if (uploadError) {
-      return res.status(500).json(error('文件上传失败', 500));
+      return res.status(500).json(error('ROM 文件上传失败', 500));
     }
 
     romPath = fileName;
@@ -1190,6 +1221,27 @@ async function handleAdminCreateGame(req, res) {
     }
   }
 
+  // 上传封面图片（如果有）
+  let coverPath = null;
+  if (coverData) {
+    const coverExt = coverFilename ? coverFilename.split('.').pop() : 'png';
+    const coverFileName = `cover-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${coverExt}`;
+    const coverType = coverContentType || 'image/png';
+
+    const { error: coverUploadError } = await supabaseAdmin.storage
+      .from('covers')
+      .upload(coverFileName, coverData, { contentType: coverType });
+
+    if (!coverUploadError) {
+      const { data: coverUrlData } = supabaseAdmin.storage
+        .from('covers')
+        .getPublicUrl(coverFileName);
+      coverPath = coverUrlData?.publicUrl || null;
+    } else {
+      console.error('封面上传错误:', coverUploadError);
+    }
+  }
+
   const { data: game, error: createError } = await supabaseAdmin
     .from('games')
     .insert({
@@ -1197,6 +1249,7 @@ async function handleAdminCreateGame(req, res) {
       category_id,
       description,
       rom_path: romPath,
+      cover_path: coverPath,
       file_size: fileSize,
       file_md5: md5,
       uploader_id: user.id,

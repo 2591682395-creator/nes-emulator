@@ -49,13 +49,17 @@
 
       gameGrid.innerHTML = data.data.list.map(game => `
         <div class="game-card" data-id="${game.id}" data-title="${game.title}">
-          <img class="game-card-cover"
-               src="${game.cover_path || '/uploads/covers/default.svg'}"
-               alt="${game.title}"
-               onerror="this.src='/uploads/covers/default.svg'">
+          <div class="game-card-cover-wrapper">
+            <img class="game-card-cover"
+                 src="${game.cover_path || '/uploads/covers/default.svg'}"
+                 alt="${game.title}"
+                 onerror="this.src='/uploads/covers/default.svg'">
+            <div class="game-card-title-tag">
+              <span>${game.title}</span>
+            </div>
+          </div>
           <div class="game-card-badge">运行中</div>
           <div class="game-card-info">
-            <div class="game-card-title">${game.title}</div>
             <div class="game-card-meta">
               <span class="game-card-tag">${game.category_name || '未分类'}</span>
               <span>${game.play_count || 0} 次</span>

@@ -322,6 +322,10 @@
             if (values.category_id) formData.append('category_id', values.category_id);
             if (values.description) formData.append('description', values.description);
             if (values.status) formData.append('status', values.status);
+            // 添加封面图片
+            if (values.cover_file && values.cover_file.file) {
+              formData.append('cover', values.cover_file.file);
+            }
             res = await api.createGame(formData);
           }
           if (res && res.code === 0) {
@@ -422,12 +426,20 @@
                 <Input placeholder="如：魂斗罗" />
               </Form.Item>
               {!editing && (
-                <Form.Item name="rom_file" label="ROM 文件" rules={[{ required: true, message: '请选择 ROM 文件' }]}
-                  valuePropName="file" getValueFromEvent={(e) => e && e.file ? { file: e.file } : e}>
-                  <Upload beforeUpload={() => false} maxCount={1} accept=".nes">
-                    <Button>选择 .nes 文件</Button>
-                  </Upload>
-                </Form.Item>
+                <>
+                  <Form.Item name="rom_file" label="ROM 文件" rules={[{ required: true, message: '请选择 ROM 文件' }]}
+                    valuePropName="file" getValueFromEvent={(e) => e && e.file ? { file: e.file } : e}>
+                    <Upload beforeUpload={() => false} maxCount={1} accept=".nes">
+                      <Button>选择 .nes 文件</Button>
+                    </Upload>
+                  </Form.Item>
+                  <Form.Item name="cover_file" label="封面图片（可选）"
+                    valuePropName="file" getValueFromEvent={(e) => e && e.file ? { file: e.file } : e}>
+                    <Upload beforeUpload={() => false} maxCount={1} accept="image/*" listType="picture">
+                      <Button>选择封面图片</Button>
+                    </Upload>
+                  </Form.Item>
+                </>
               )}
               <Form.Item name="category_id" label="游戏分类">
                 <Select placeholder="选择分类" allowClear>
