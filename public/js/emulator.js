@@ -1,192 +1,134 @@
 /**
- * emulator.js - NES 模拟器封装层
- * 封装 jsnes 库，提供简洁的控制接口
+ * Multi-system EmulatorJS wrapper.
+ * Supports NES, Game Boy, Game Boy Color and Game Boy Advance ROMs.
  */
 class Emulator {
-  /**
-   * @param {Object} options
-   * @param {HTMLCanvasElement} options.canvas - 渲染画布
-   * @param {NESAudio} options.audio - 音频实例
-   * @param {Function} options.onStatusUpdate - 状态更新回调
-   * @param {Function} options.onFPS - FPS 更新回调
-   */
-  constructor({ canvas, audio, onStatusUpdate, onFPS }) {
+  constructor({ canvas, onStatusUpdate, onFPS }) {
     this.canvas = canvas;
-    this.ctx = canvas.getContext("2d");
-    this.audio = audio;
+    this.wrapper = canvas.parentElement;
     this.onStatusUpdate = onStatusUpdate || (() => {});
     this.onFPS = onFPS || (() => {});
-
-    this.nes = null;
-    this.running = false;
-    this.animFrameId = null;
-    this.fpsInterval = null;
-
-    // Canvas 渲染缓冲区
-    this.imageData = this.ctx.createImageData(256, 240);
-    this.buf = new ArrayBuffer(this.imageData.data.length);
-    this.buf8 = new Uint8ClampedArray(this.buf);
-    this.buf32 = new Uint32Array(this.buf);
-
-    // 初始化 alpha 通道
-    for (let i = 0; i < this.buf32.length; i++) {
-      this.buf32[i] = 0xff000000;
-    }
+    this.frame = null;
+    this.objectUrl = null;
+    this.core = null;
+    this.muted = false;
   }
 
-  /**
-   * 初始化 jsnes 实例
-   */
   init() {
-    this.nes = new jsnes.NES({
-      onFrame: (frameBuffer) => this._renderFrame(frameBuffer),
-      onAudioSample: (left, right) => {
-        if (this.audio) {
-          this.audio.writeSample(left, right);
-        }
-      },
-      onStatusUpdate: (status) => this.onStatusUpdate(status),
-      emulateSound: true,
+    this.canvas.hidden = true;
+    this.frame = document.createElement("iframe");
+    this.frame.id = "emulatorFrame";
+    this.frame.className = "emulator-frame";
+    this.frame.title = "游戏模拟器";
+    this.frame.allow = "autoplay; fullscreen; gamepad";
+    this.frame.setAttribute("allowfullscreen", "");
+    this.frame.hidden = true;
+    this.wrapper.insertBefore(this.frame, this.canvas.nextSibling);
+
+    window.addEventListener("message", (event) => {
+      if (event.source !== this.frame.contentWindow || !event.data) return;
+      if (event.data.type === "emulator-ready") {
+        this.onStatusUpdate(`${this.getCoreLabel()} 核心已就绪`);
+        this.frame.focus();
+      } else if (event.data.type === "emulator-error") {
+        this.onStatusUpdate(`模拟器错误: ${event.data.message}`);
+      }
     });
+
+    this.onStatusUpdate("EmulatorJS 已就绪");
   }
 
-  /**
-   * 加载 ROM 文件
-   * @param {ArrayBuffer} romData - ROM 文件的 ArrayBuffer
-   */
-  loadROM(romData) {
-    if (!this.nes) this.init();
-
+  loadROM(romData, fileName = "game.nes") {
     try {
-      this.nes.loadROM(romData);
-      this.onStatusUpdate("ROM 加载成功");
+      this.core = detectRomCore(romData, fileName);
+      this.stop();
+      this.objectUrl = URL.createObjectURL(
+        new Blob([romData], { type: "application/octet-stream" }),
+      );
+
+      const query = new URLSearchParams({
+        core: this.core,
+        rom: this.objectUrl,
+        name: fileName.replace(/\.[^.]+$/, ""),
+      });
+      this.frame.src = `player.html?${query}`;
+      this.frame.hidden = false;
+      this.onFPS(`核心: ${this.getCoreLabel()}`);
+      this.onStatusUpdate(`正在启动 ${this.getCoreLabel()} 核心...`);
       return true;
-    } catch (e) {
-      this.onStatusUpdate("ROM 加载失败: " + e.message);
-      console.error("ROM 加载错误:", e);
+    } catch (error) {
+      this.onStatusUpdate(`ROM 加载失败: ${error.message}`);
+      console.error("ROM 加载失败:", error);
       return false;
     }
   }
 
-  /**
-   * 渲染一帧到 Canvas
-   * @param {Array} frameBuffer - jsnes 的帧缓冲区（256*240 的数组，每个元素是 RGB 整数）
-   */
-  _renderFrame(frameBuffer) {
-    for (let y = 0; y < 240; y++) {
-      for (let x = 0; x < 256; x++) {
-        const i = y * 256 + x;
-        // jsnes 输出 BGR 格式，Canvas 需要 ABGR（小端序）
-        this.buf32[i] = 0xff000000 | frameBuffer[i];
-      }
-    }
-    this.imageData.data.set(this.buf8);
-    this.ctx.putImageData(this.imageData, 0, 0);
+  getCoreLabel() {
+    return { nes: "NES", gba: "GBA", gb: "GB/GBC" }[this.core] || "EmulatorJS";
   }
 
-  /**
-   * 开始游戏循环
-   */
+  _control(action, value) {
+    if (!this.frame || !this.frame.contentWindow) return;
+    this.frame.contentWindow.postMessage(
+      { type: "emulator-control", action, value },
+      location.origin,
+    );
+  }
+
   start() {
-    if (!this.nes || this.running) return;
-    this.running = true;
-
-    // NES 标准帧率 60.0988 FPS
-    const fps = 60.0988;
-    const frameDuration = 1000 / fps;
-    let lastFrameTime = performance.now();
-    let frameCount = 0;
-    let lastFpsTime = performance.now();
-
-    const loop = (now) => {
-      if (!this.running) return;
-
-      // 帧率控制：确保每帧间隔正确
-      const elapsed = now - lastFrameTime;
-      if (elapsed >= frameDuration) {
-        // 补偿丢失的帧
-        const framesToRun = Math.min(Math.floor(elapsed / frameDuration), 3);
-        for (let i = 0; i < framesToRun; i++) {
-          try {
-            this.nes.frame();
-          } catch (e) {
-            console.error("模拟器运行错误:", e);
-            this.stop();
-            this.onStatusUpdate("模拟器崩溃: " + e.message);
-            return;
-          }
-        }
-
-        // 刷新音频缓冲
-        if (this.audio) {
-          this.audio.flush();
-        }
-
-        lastFrameTime = now - (elapsed % frameDuration);
-        frameCount += framesToRun;
-      }
-
-      // 每秒更新 FPS
-      const fpsElapsed = now - lastFpsTime;
-      if (fpsElapsed >= 1000) {
-        this.onFPS(Math.round((frameCount * 1000) / fpsElapsed));
-        frameCount = 0;
-        lastFpsTime = now;
-      }
-
-      this.animFrameId = requestAnimationFrame(loop);
-    };
-
-    this.animFrameId = requestAnimationFrame(loop);
-    this.onStatusUpdate("运行中");
+    this._control("play");
+    this.frame?.focus();
+    this.onStatusUpdate(`${this.getCoreLabel()} 运行中`);
   }
 
-  /**
-   * 暂停游戏
-   */
   pause() {
-    this.running = false;
-    if (this.animFrameId) {
-      cancelAnimationFrame(this.animFrameId);
-      this.animFrameId = null;
-    }
+    this._control("pause");
     this.onStatusUpdate("已暂停");
   }
 
-  /**
-   * 重置游戏
-   */
   reset() {
-    if (!this.nes) return;
-    const wasRunning = this.running;
-    this.pause();
-    this.nes.reset();
-    this.onStatusUpdate("已重置");
-    if (wasRunning) {
-      this.start();
-    }
+    this._control("restart");
+    this.onStatusUpdate("游戏已重置");
   }
 
-  /**
-   * 停止模拟器并释放资源
-   */
+  toggleMute() {
+    this.muted = !this.muted;
+    this._control("mute", this.muted);
+    return this.muted;
+  }
+
   stop() {
-    this.pause();
-    this.nes = null;
-  }
-
-  /**
-   * 获取手柄控制器接口（供 input 模块使用）
-   */
-  buttonDown(controller, button) {
-    if (this.nes) {
-      this.nes.buttonDown(controller, button);
+    if (this.objectUrl) {
+      URL.revokeObjectURL(this.objectUrl);
+      this.objectUrl = null;
     }
   }
 
-  buttonUp(controller, button) {
-    if (this.nes) {
-      this.nes.buttonUp(controller, button);
-    }
+  buttonDown() {}
+  buttonUp() {}
+}
+
+function detectRomCore(romData, fileName = "") {
+  const extension = fileName.toLowerCase().match(/\.([a-z0-9]+)(?:[?#].*)?$/)?.[1];
+  if (extension === "nes") return "nes";
+  if (extension === "gba") return "gba";
+  if (extension === "gb" || extension === "gbc") return "gb";
+
+  const bytes = new Uint8Array(romData);
+  if (bytes.length >= 4 && bytes[0] === 0x4e && bytes[1] === 0x45 && bytes[2] === 0x53 && bytes[3] === 0x1a) {
+    return "nes";
   }
+  if (bytes.length > 0xb2 && bytes[0xb2] === 0x96) return "gba";
+  if (
+    bytes.length > 0x14a &&
+    bytes[0x104] === 0xce && bytes[0x105] === 0xed &&
+    bytes[0x106] === 0x66 && bytes[0x107] === 0x66
+  ) {
+    return "gb";
+  }
+  throw new Error("仅支持 .nes、.gb、.gbc 和 .gba ROM");
+}
+
+if (typeof module !== "undefined") {
+  module.exports = { detectRomCore };
 }

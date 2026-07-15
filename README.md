@@ -35,7 +35,7 @@ npm start
 
 1. 打开前台页面
 2. 注册/登录账号
-3. 点击「📂 加载 ROM」上传 .nes 文件
+3. 点击「📂 加载 ROM」选择 `.nes`、`.gb`、`.gbc` 或 `.gba` 文件
 4. 管理员在后台审核通过后即可游玩
 
 ## 键位说明
@@ -51,7 +51,7 @@ npm start
 ## 技术栈
 
 ### 前端
-- **模拟器引擎**: jsnes 2.1.0
+- **模拟器引擎**: EmulatorJS（NES / GB / GBC / GBA 多核心）
 - **渲染**: Canvas 2D API
 - **音频**: Web Audio API (AudioWorklet)
 - **后台管理**: React 18 + antd 5 (CDN)
@@ -69,11 +69,9 @@ code/01_mvp/
 ├── index.html                 # 前台主页
 ├── css/style.css              # 前台样式
 ├── js/                        # 前台脚本
-│   ├── jsnes.min.js           # jsnes 模拟器库
-│   ├── app.js                 # 主应用入口
-│   ├── emulator.js            # 模拟器封装
-│   ├── input.js               # 键盘输入
-│   └── audio.js               # 音频处理
+│   ├── app.js                 # 主应用入口与游戏切换
+│   └── emulator.js            # EmulatorJS 多核心封装
+├── player.html                # 隔离运行 NES/GB/GBC/GBA 核心
 ├── admin/
 │   └── index.html             # 管理后台 (React + antd)
 ├── server/

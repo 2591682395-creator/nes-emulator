@@ -429,8 +429,8 @@
                 <>
                   <Form.Item name="rom_file" label="ROM 文件" rules={[{ required: true, message: '请选择 ROM 文件' }]}
                     valuePropName="file" getValueFromEvent={(e) => e && e.file ? { file: e.file } : e}>
-                    <Upload beforeUpload={() => false} maxCount={1} accept=".nes">
-                      <Button>选择 .nes 文件</Button>
+                    <Upload beforeUpload={() => false} maxCount={1} accept=".nes,.gb,.gbc,.gba">
+                      <Button>选择 NES / GB / GBC / GBA 文件</Button>
                     </Upload>
                   </Form.Item>
                   <Form.Item name="cover_file" label="封面图片（可选）"

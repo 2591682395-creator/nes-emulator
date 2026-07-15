@@ -237,7 +237,7 @@ router.get('/:id/download', optionalAuth, async (req, res) => {
     // 增加游玩次数
     await Game.incrementPlayCount(req.params.id);
 
-    res.download(romFullPath, `${game.title}.nes`);
+    res.download(romFullPath, `${game.title}${path.extname(game.rom_path) || '.nes'}`);
   } catch (err) {
     console.error('下载游戏错误:', err);
     error(res, '下载失败', 500, 500);

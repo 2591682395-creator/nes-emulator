@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NES 红白机模拟器</title>
+  <title>多平台经典游戏模拟器</title>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <div class="container">
     <!-- 标题 -->
     <header class="header">
-      <h1>🎮 NES 红白机模拟器</h1>
-      <p class="subtitle">在浏览器中重温经典</p>
+      <h1>🎮 多平台经典游戏模拟器</h1>
+      <p class="subtitle">支持 NES、GB、GBC 与 GBA 游戏</p>
     </header>
 
     <!-- 主内容区 -->
@@ -39,9 +39,9 @@
         <!-- ROM 加载 -->
         <div class="control-group">
           <label class="file-label" for="romFile">
-            📂 选择 ROM 文件 (.nes)
+            📂 选择 ROM（NES / GB / GBC / GBA）
           </label>
-          <input type="file" id="romFile" accept=".nes" hidden>
+          <input type="file" id="romFile" accept=".nes,.gb,.gbc,.gba" hidden>
           <span class="rom-name" id="romName">未选择文件</span>
         </div>
 
@@ -63,27 +63,23 @@
 
       <!-- 键位说明 -->
       <div class="keymap">
-        <h3>⌨️ 键位说明</h3>
+        <h3>⌨️ 操作说明（可在播放器“控制设置”中修改）</h3>
         <div class="keymap-tables">
           <div class="keymap-player">
-            <h4>玩家 1</h4>
+            <h4>默认键盘</h4>
             <table>
               <tr><td>方向</td><td>↑ ↓ ← →</td></tr>
-              <tr><td>A</td><td>Z</td></tr>
-              <tr><td>B</td><td>X</td></tr>
+              <tr><td>A</td><td>X</td></tr>
+              <tr><td>B</td><td>Z</td></tr>
               <tr><td>Start</td><td>Enter</td></tr>
               <tr><td>Select</td><td>Right Shift</td></tr>
+              <tr><td>GBA L / R</td><td>A / S</td></tr>
             </table>
           </div>
           <div class="keymap-player">
-            <h4>玩家 2</h4>
-            <table>
-              <tr><td>方向</td><td>W A S D</td></tr>
-              <tr><td>A</td><td>J</td></tr>
-              <tr><td>B</td><td>K</td></tr>
-              <tr><td>Start</td><td>U</td></tr>
-              <tr><td>Select</td><td>I</td></tr>
-            </table>
+            <h4>手柄与存档</h4>
+            <p>支持浏览器 Gamepad 手柄。</p>
+            <p>播放器工具栏可保存/加载状态，并可导入导出游戏存档。</p>
           </div>
         </div>
       </div>
@@ -93,12 +89,8 @@
   <!-- 错误提示弹窗 -->
   <div class="toast" id="toast"></div>
 
-  <!-- 加载 jsnes 模拟器库 -->
-  <script src="js/jsnes.min.js?v=20260715-sprite-fix"></script>
-  <!-- 应用模块 -->
-  <script src="js/audio.js"></script>
-  <script src="js/emulator.js"></script>
-  <script src="js/input.js"></script>
-  <script src="js/app.js"></script>
+  <!-- EmulatorJS 多平台封装 -->
+  <script src="js/emulator.js?v=20260715-multicore"></script>
+  <script src="js/app.js?v=20260715-multicore"></script>
 </body>
 </html>

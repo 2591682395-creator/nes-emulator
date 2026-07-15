@@ -36,10 +36,10 @@ const coverStorage = multer.diskStorage({
 // ROM 文件过滤器
 function romFilter(req, file, cb) {
   const ext = path.extname(file.originalname).toLowerCase();
-  if (ext === '.nes') {
+  if (['.nes', '.gb', '.gbc', '.gba'].includes(ext)) {
     cb(null, true);
   } else {
-    cb(new Error('只支持 .nes 格式的 ROM 文件'), false);
+    cb(new Error('只支持 .nes、.gb、.gbc 和 .gba 格式的 ROM 文件'), false);
   }
 }
 
@@ -55,7 +55,7 @@ function imageFilter(req, file, cb) {
 
 const uploadROM = multer({
   storage: romStorage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 64 * 1024 * 1024 }, // GBA ROM 最大通常为 32MB
   fileFilter: romFilter,
 });
 

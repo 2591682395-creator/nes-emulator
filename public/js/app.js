@@ -1,11 +1,6 @@
-/**
- * app.js - 主应用入口
- * 初始化各模块，绑定 UI 事件
- */
 (function () {
   "use strict";
 
-  // ===== DOM 元素 =====
   const screen = document.getElementById("screen");
   const placeholder = document.getElementById("placeholder");
   const romFileInput = document.getElementById("romFile");
@@ -20,252 +15,148 @@
   const toastEl = document.getElementById("toast");
   const gameGrid = document.getElementById("gameGrid");
 
-  // ===== 实例化模块 =====
-  const audio = new NESAudio();
   const emulator = new Emulator({
     canvas: screen,
-    audio: audio,
-    onStatusUpdate: (status) => {
-      statusDisplay.textContent = status;
-    },
-    onFPS: (fps) => {
-      fpsDisplay.textContent = `FPS: ${fps}`;
-    },
+    onStatusUpdate: (status) => { statusDisplay.textContent = status; },
+    onFPS: (status) => { fpsDisplay.textContent = status; },
   });
-  const input = new InputManager(emulator);
 
-  // ===== 状态 =====
   let romLoaded = false;
   let isRunning = false;
   let isMuted = false;
-  let currentGameId = null;
 
-  // ===== 加载游戏库 =====
+  const escapeHTML = (value) => String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+
   async function loadGameLibrary() {
     try {
       const res = await fetch("/api/games?pageSize=50");
       const data = await res.json();
       if (data.code !== 0 || !data.data.list.length) return;
 
-      gameGrid.innerHTML = data.data.list.map(game => `
-        <div class="game-card" data-id="${game.id}" data-title="${game.title}">
-          <div class="game-card-cover-wrapper">
-            <img class="game-card-cover"
-                 src="${game.cover_path || '/uploads/covers/default.svg'}"
-                 alt="${game.title}"
-                 onerror="this.src='/uploads/covers/default.svg'">
-            <div class="game-card-title-tag">
-              <span>${game.title}</span>
-            </div>
-          </div>
-          <div class="game-card-badge">运行中</div>
+      gameGrid.innerHTML = data.data.list.map((game) => `
+        <div class="game-card" data-id="${game.id}"
+             data-title="${escapeHTML(game.title)}"
+             data-rom-path="${escapeHTML(game.rom_path || "")}">
+          <img class="game-card-cover"
+               src="${escapeHTML(game.cover_path || "/uploads/covers/default.png") }"
+               alt="${escapeHTML(game.title)}">
+          <div class="game-card-badge">点击游玩</div>
           <div class="game-card-info">
+            <div class="game-card-title">${escapeHTML(game.title)}</div>
             <div class="game-card-meta">
-              <span class="game-card-tag">${game.category_name || '未分类'}</span>
-              <span>${game.play_count || 0} 次</span>
+              <span class="game-card-tag">${escapeHTML(game.category_name || "未分类")}</span>
+              <span>${Number(game.play_count) || 0} 次</span>
             </div>
           </div>
         </div>
       `).join("");
 
-      // 绑定点击事件
-      gameGrid.querySelectorAll(".game-card").forEach(card => {
-        card.addEventListener("click", () => {
-          const gameId = card.dataset.id;
-          const gameTitle = card.dataset.title;
-          loadGameFromServer(gameId, gameTitle, card);
-        });
+      gameGrid.querySelectorAll(".game-card").forEach((card) => {
+        card.addEventListener("click", () => loadGameFromServer(card));
       });
-    } catch (e) {
-      console.warn("加载游戏库失败:", e);
+    } catch (error) {
+      console.warn("加载游戏库失败:", error);
     }
   }
 
-  // ===== 从服务器加载游戏 =====
-  async function loadGameFromServer(gameId, gameTitle, cardEl) {
-    // 高亮当前卡片
-    gameGrid.querySelectorAll(".game-card").forEach(c => c.classList.remove("active"));
-    if (cardEl) cardEl.classList.add("active");
-
-    showToast(`正在加载: ${gameTitle}...`);
+  async function loadGameFromServer(card) {
+    gameGrid.querySelectorAll(".game-card").forEach((item) => item.classList.remove("active"));
+    card.classList.add("active");
+    const { id, title, romPath } = card.dataset;
+    showToast(`正在加载: ${title}...`);
 
     try {
-      const res = await fetch(`/api/games/${gameId}/download`);
-      if (!res.ok) throw new Error("下载失败");
-
-      // 获取 ROM 文件数据 (支持重定向到 Supabase Storage 签名 URL)
-      const blob = await res.blob();
-      const arrayBuffer = await blob.arrayBuffer();
-
-      // 启动音频
-      await audio.start();
-
-      // 加载 ROM
-      const success = emulator.loadROM(arrayBuffer);
-      if (success) {
-        romLoaded = true;
-        currentGameId = gameId;
-        placeholder.classList.add("hidden");
-        romNameDisplay.textContent = gameTitle;
-        showToast(`已加载: ${gameTitle}`);
-        updateButtons();
-
-        // 自动开始
-        emulator.start();
-        input.start();
-        isRunning = true;
-        updateButtons();
-      } else {
-        showToast("ROM 加载失败");
-      }
-    } catch (e) {
-      console.error("加载游戏失败:", e);
-      showToast("加载失败: " + e.message);
+      const res = await fetch(`/api/games/${id}/download`);
+      if (!res.ok) throw new Error("ROM 下载失败");
+      const data = await res.arrayBuffer();
+      finishLoading(data, romPath || title, title);
+    } catch (error) {
+      console.error("加载游戏失败:", error);
+      showToast(`加载失败: ${error.message}`);
     }
   }
 
-  // ===== Toast 提示 =====
-  let toastTimer = null;
+  function finishLoading(data, fileName, displayName) {
+    if (!emulator.loadROM(data, fileName)) {
+      showToast("ROM 格式不受支持");
+      return;
+    }
+    romLoaded = true;
+    isRunning = true;
+    placeholder.classList.add("hidden");
+    romNameDisplay.textContent = displayName;
+    showToast(`已加载: ${displayName}`);
+    updateButtons();
+  }
+
+  let toastTimer;
   function showToast(message, duration = 2500) {
     toastEl.textContent = message;
     toastEl.classList.add("show");
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-      toastEl.classList.remove("show");
-    }, duration);
+    toastTimer = setTimeout(() => toastEl.classList.remove("show"), duration);
   }
 
-  // ===== 按钮状态更新 =====
   function updateButtons() {
-    btnStart.disabled = !romLoaded;
-    btnPause.disabled = !romLoaded;
-    btnReset.disabled = !romLoaded;
-    btnMute.disabled = !romLoaded;
-    btnFullscreen.disabled = !romLoaded;
-
+    [btnStart, btnPause, btnReset, btnMute, btnFullscreen]
+      .forEach((button) => { button.disabled = !romLoaded; });
     btnPause.textContent = isRunning ? "⏸ 暂停" : "▶ 继续";
     btnMute.textContent = isMuted ? "🔇 静音" : "🔊 声音";
   }
 
-  // ===== ROM 文件加载 =====
-  romFileInput.addEventListener("change", (e) => {
-    const file = e.target.files[0];
+  romFileInput.addEventListener("change", async (event) => {
+    const file = event.target.files[0];
     if (!file) return;
-
-    romNameDisplay.textContent = file.name;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const romData = event.target.result; // ArrayBuffer
-
-      // 启动音频（需要用户手势触发）
-      await audio.start();
-
-      // 加载 ROM
-      const success = emulator.loadROM(romData);
-      if (success) {
-        romLoaded = true;
-        placeholder.classList.add("hidden");
-        showToast(`已加载: ${file.name}`);
-        updateButtons();
-
-        // 自动开始游戏
-        emulator.start();
-        input.start();
-        isRunning = true;
-        updateButtons();
-      } else {
-        showToast("ROM 加载失败，请检查文件格式");
-      }
-    };
-
-    reader.onerror = () => {
-      showToast("文件读取失败");
-    };
-
-    reader.readAsArrayBuffer(file);
+    try {
+      finishLoading(await file.arrayBuffer(), file.name, file.name);
+    } catch (error) {
+      showToast(`文件读取失败: ${error.message}`);
+    }
   });
 
-  // ===== 开始/继续 =====
   btnStart.addEventListener("click", () => {
     if (!romLoaded) return;
-    if (!isRunning) {
-      emulator.start();
-      input.start();
-      isRunning = true;
-      updateButtons();
-    }
-  });
-
-  // ===== 暂停 =====
-  btnPause.addEventListener("click", () => {
-    if (!romLoaded) return;
-    if (isRunning) {
-      emulator.pause();
-      isRunning = false;
-    } else {
-      emulator.start();
-      isRunning = true;
-    }
+    emulator.start();
+    isRunning = true;
     updateButtons();
   });
 
-  // ===== 重置 =====
+  btnPause.addEventListener("click", () => {
+    if (!romLoaded) return;
+    isRunning ? emulator.pause() : emulator.start();
+    isRunning = !isRunning;
+    updateButtons();
+  });
+
   btnReset.addEventListener("click", () => {
     if (!romLoaded) return;
     emulator.reset();
-    if (!isRunning) {
-      emulator.start();
-      input.start();
-      isRunning = true;
-    }
-    showToast("游戏已重置");
+    isRunning = true;
     updateButtons();
   });
 
-  // ===== 静音 =====
   btnMute.addEventListener("click", () => {
-    isMuted = audio.toggleMute();
+    isMuted = emulator.toggleMute();
     updateButtons();
   });
 
-  // ===== 全屏 =====
   btnFullscreen.addEventListener("click", () => {
     const wrapper = document.getElementById("screenWrapper");
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else {
-      wrapper.requestFullscreen().catch(() => {
-        showToast("全屏模式不可用");
-      });
-    }
+    document.fullscreenElement
+      ? document.exitFullscreen()
+      : wrapper.requestFullscreen().catch(() => showToast("全屏模式不可用"));
   });
 
-  // 全屏状态变化时更新按钮文字
   document.addEventListener("fullscreenchange", () => {
-    btnFullscreen.textContent = document.fullscreenElement
-      ? "⛶ 退出全屏"
-      : "⛶ 全屏";
+    btnFullscreen.textContent = document.fullscreenElement ? "退出全屏" : "全屏";
   });
 
-  // ===== 防止方向键滚动页面 =====
-  window.addEventListener(
-    "keydown",
-    (e) => {
-      if (
-        ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(
-          e.code
-        )
-      ) {
-        e.preventDefault();
-      }
-    },
-    { passive: false }
-  );
-
-  // ===== 初始化 =====
   emulator.init();
   updateButtons();
   loadGameLibrary();
-  console.log("NES 红白机模拟器 MVP 已就绪");
 })();

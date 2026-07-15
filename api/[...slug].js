@@ -3,6 +3,23 @@ const { requireAuth, requireAdmin, optionalAuth } = require('../lib/auth');
 const { success, error, paginated } = require('../lib/response');
 const crypto = require('crypto');
 
+const SUPPORTED_ROM_EXTENSIONS = new Set(['.nes', '.gb', '.gbc', '.gba']);
+
+function getRomExtension(filename, data) {
+  const extension = String(filename || '').toLowerCase().match(/\.[a-z0-9]+$/)?.[0];
+  if (SUPPORTED_ROM_EXTENSIONS.has(extension)) return extension;
+
+  const bytes = Buffer.isBuffer(data) ? data : Buffer.from(data || []);
+  if (bytes.length >= 4 && bytes.subarray(0, 4).equals(Buffer.from([0x4e, 0x45, 0x53, 0x1a]))) {
+    return '.nes';
+  }
+  if (bytes.length > 0xb2 && bytes[0xb2] === 0x96) return '.gba';
+  if (bytes.length > 0x107 && bytes[0x104] === 0xce && bytes[0x105] === 0xed && bytes[0x106] === 0x66 && bytes[0x107] === 0x66) {
+    return bytes[0x143] === 0x80 || bytes[0x143] === 0xc0 ? '.gbc' : '.gb';
+  }
+  throw new Error('仅支持 .nes、.gb、.gbc 和 .gba ROM 文件');
+}
+
 module.exports = async function handler(req, res) {
   // 设置 CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -482,6 +499,13 @@ async function handleUploadGame(req, res) {
     return res.status(400).json(error('请选择 ROM 文件'));
   }
 
+  let romExtension;
+  try {
+    romExtension = getRomExtension(romPart.filename, romPart.data);
+  } catch (extensionError) {
+    return res.status(400).json(error(extensionError.message));
+  }
+
   const title = titlePart.value;
   const category_id = categoryPart?.value ? Number(categoryPart.value) : null;
   const description = descPart?.value || '';
@@ -499,7 +523,7 @@ async function handleUploadGame(req, res) {
   }
 
   // 上传 ROM 文件
-  const romFileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.nes`;
+  const romFileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}${romExtension}`;
   const { error: uploadError } = await supabaseAdmin.storage
     .from('roms')
     .upload(romFileName, romPart.data, {
@@ -1249,7 +1273,7 @@ async function handleAdminCreateGame(req, res) {
   const contentType = req.headers['content-type'] || '';
   const boundaryMatch = contentType.match(/boundary=(.+)/);
 
-  let title, category_id, description, gameStatus, romData, coverData, coverFilename, coverContentType;
+  let title, category_id, description, gameStatus, romData, romFilename, coverData, coverFilename, coverContentType;
 
   if (boundaryMatch) {
     const boundary = boundaryMatch[1];
@@ -1267,6 +1291,7 @@ async function handleAdminCreateGame(req, res) {
     description = descPart?.value || '';
     gameStatus = statusPart?.value || 'approved';
     romData = romPart?.data;
+    romFilename = romPart?.filename;
     coverData = coverPart?.data;
     coverFilename = coverPart?.filename;
     coverContentType = coverPart?.contentType;
@@ -1287,7 +1312,13 @@ async function handleAdminCreateGame(req, res) {
   let md5 = null;
 
   if (romData) {
-    const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}.nes`;
+    let extension;
+    try {
+      extension = getRomExtension(romFilename, romData);
+    } catch (extensionError) {
+      return res.status(400).json(error(extensionError.message));
+    }
+    const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}${extension}`;
     const { error: uploadError } = await supabaseAdmin.storage
       .from('roms')
       .upload(fileName, romData, { contentType: 'application/octet-stream' });
