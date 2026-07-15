@@ -76,6 +76,9 @@ module.exports = async function handler(req, res) {
     if (path.match(/^games\/\d+\/download$/) && method === 'GET') {
       return await handleDownloadGame(req, res, path);
     }
+    if (path.match(/^games\/\d+\/cover$/) && method === 'POST') {
+      return await handleUploadCover(req, res, path);
+    }
 
     // ============================================
     // 存档路由
@@ -750,6 +753,88 @@ async function handleDownloadGame(req, res, path) {
     .eq('id', id);
 
   return res.redirect(302, urlData.signedUrl);
+}
+
+async function handleUploadCover(req, res, path) {
+  const id = path.split('/')[1];
+  const user = await requireAuth(req, res);
+  if (!user) return;
+
+  // 检查游戏是否存在
+  const { data: game } = await supabaseAdmin
+    .from('games')
+    .select('*')
+    .eq('id', id)
+    .single();
+
+  if (!game) {
+    return res.status(404).json(error('游戏不存在', 404));
+  }
+
+  // 只有作者或管理员可以上传封面
+  if (game.uploader_id !== user.id && user.profile.role !== 'admin') {
+    return res.status(403).json(error('没有权限操作', 403));
+  }
+
+  // 解析 multipart form data
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(chunk);
+  }
+  const buffer = Buffer.concat(chunks);
+
+  const contentType = req.headers['content-type'] || '';
+  const boundaryMatch = contentType.match(/boundary=(.+)/);
+  if (!boundaryMatch) {
+    return res.status(400).json(error('无效的请求格式'));
+  }
+
+  const boundary = boundaryMatch[1];
+  const parts = parseMultipart(buffer, boundary);
+  const coverPart = parts.find(p => p.name === 'cover');
+
+  if (!coverPart || !coverPart.data) {
+    return res.status(400).json(error('请选择封面图片'));
+  }
+
+  // 删除旧封面（如果有）
+  if (game.cover_path) {
+    try {
+      const oldPath = game.cover_path.split('/').pop();
+      await supabaseAdmin.storage.from('covers').remove([oldPath]);
+    } catch (e) {
+      console.error('删除旧封面失败:', e);
+    }
+  }
+
+  // 上传新封面
+  const coverExt = coverPart.filename ? coverPart.filename.split('.').pop() : 'png';
+  const coverFileName = `cover-${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${coverExt}`;
+  const coverType = coverPart.contentType || 'image/png';
+
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from('covers')
+    .upload(coverFileName, coverPart.data, { contentType: coverType });
+
+  if (uploadError) {
+    console.error('封面上传错误:', uploadError);
+    return res.status(500).json(error('封面上传失败', 500));
+  }
+
+  // 获取公开 URL
+  const { data: coverUrlData } = supabaseAdmin.storage
+    .from('covers')
+    .getPublicUrl(coverFileName);
+
+  const coverPath = coverUrlData?.publicUrl || null;
+
+  // 更新游戏记录
+  await supabaseAdmin
+    .from('games')
+    .update({ cover_path: coverPath })
+    .eq('id', id);
+
+  return res.status(200).json(success({ cover_path: coverPath }, '封面上传成功'));
 }
 
 // ============================================
