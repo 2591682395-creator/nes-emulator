@@ -1,0 +1,1031 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NES 模拟器 - 管理后台</title>
+  <link rel="stylesheet" href="https://unpkg.com/antd@5.12.8/dist/reset.css">
+  <style>
+    body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f2f5; }
+    #root { min-height: 100vh; }
+    .login-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); }
+    .login-card { width: 400px; }
+    .login-header { text-align: center; margin-bottom: 24px; }
+    .login-header h1 { color: #fff; font-size: 24px; margin-bottom: 4px; }
+    .login-header p { color: rgba(255,255,255,0.6); font-size: 14px; }
+    .stat-card { text-align: center; }
+    .stat-card .stat-value { font-size: 28px; font-weight: 700; }
+    .stat-card .stat-label { color: #888; font-size: 13px; margin-top: 4px; }
+    .stat-card.primary .stat-value { color: #1677ff; }
+    .stat-card.success .stat-value { color: #52c41a; }
+    .stat-card.warning .stat-value { color: #faad14; }
+    .stat-card.danger .stat-value { color: #ff4d4f; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- CDN 依赖 -->
+  <script src="https://unpkg.com/react@18.2.0/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone@7.23.6/babel.min.js"></script>
+  <script src="https://unpkg.com/dayjs@1.11.10/dayjs.min.js"></script>
+  <script src="https://unpkg.com/antd@5.12.8/dist/antd.min.js"></script>
+  <script src="https://unpkg.com/@ant-design/icons@5.2.6/dist/index.umd.min.js"></script>
+
+  <script type="text/babel">
+    // =============================================
+    // NES 模拟器管理后台 - React + antd
+    // =============================================
+    const { useState, useEffect, useCallback, useMemo } = React;
+    const {
+      Layout, Menu, Button, Table, Card, Form, Input, InputNumber, Select,
+      Tag, Space, Modal, message, Popconfirm, Badge, Statistic, Row, Col,
+      Tabs, Upload, Switch, Rate, Avatar, Dropdown, Typography, Divider, theme
+    } = antd;
+    const { Header, Sider, Content } = Layout;
+    const { Title, Text } = Typography;
+    const icons = window.icons || {};
+
+    // =============================================
+    // API 工具函数
+    // =============================================
+    const API_BASE = '/api';
+
+    async function apiRequest(url, options = {}) {
+      const token = localStorage.getItem('admin_token');
+      const headers = { 'Content-Type': 'application/json', ...options.headers };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+
+      const res = await fetch(`${API_BASE}${url}`, { ...options, headers });
+      const data = await res.json();
+
+      if (res.status === 401) {
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_user');
+        window.location.reload();
+        return;
+      }
+      return data;
+    }
+
+    const api = {
+      // Auth
+      login: (username, password) => apiRequest('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
+      getProfile: () => apiRequest('/auth/profile'),
+
+      // Stats
+      getStats: () => apiRequest('/admin/stats'),
+
+      // Users
+      getUsers: (params) => apiRequest(`/admin/users?${new URLSearchParams(params)}`),
+      createUser: (data) => apiRequest('/admin/users', { method: 'POST', body: JSON.stringify(data) }),
+      updateUser: (id, data) => apiRequest(`/admin/users/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      updateUserStatus: (id, status) => apiRequest(`/admin/users/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+      updateUserRole: (id, role) => apiRequest(`/admin/users/${id}/role`, { method: 'PUT', body: JSON.stringify({ role }) }),
+      deleteUser: (id) => apiRequest(`/admin/users/${id}`, { method: 'DELETE' }),
+
+      // Games
+      getGames: (params) => apiRequest(`/admin/games?${new URLSearchParams(params)}`),
+      createGame: async (formData) => {
+        const token = localStorage.getItem('admin_token');
+        const res = await fetch(`${API_BASE}/admin/games`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData,
+        });
+        return res.json();
+      },
+      updateGame: (id, data) => apiRequest(`/admin/games/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      updateGameStatus: (id, status) => apiRequest(`/admin/games/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+      deleteGame: (id) => apiRequest(`/admin/games/${id}`, { method: 'DELETE' }),
+
+      // Categories
+      getCategories: () => apiRequest('/categories'),
+      createCategory: (data) => apiRequest('/admin/categories', { method: 'POST', body: JSON.stringify(data) }),
+      updateCategory: (id, data) => apiRequest(`/admin/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+      deleteCategory: (id) => apiRequest(`/admin/categories/${id}`, { method: 'DELETE' }),
+
+      // Comments
+      getComments: (params) => apiRequest(`/admin/comments?${new URLSearchParams(params)}`),
+      updateCommentStatus: (id, status) => apiRequest(`/admin/comments/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
+      deleteComment: (id) => apiRequest(`/admin/comments/${id}`, { method: 'DELETE' }),
+
+      // Settings
+      getSettings: () => apiRequest('/admin/settings'),
+      updateSettings: (settings) => apiRequest('/admin/settings', { method: 'PUT', body: JSON.stringify({ settings }) }),
+
+      // Logs
+      getLogs: (params) => apiRequest(`/admin/logs?${new URLSearchParams(params)}`),
+    };
+
+    // =============================================
+    // 登录页面
+    // =============================================
+    function LoginPage({ onLogin }) {
+      const [loading, setLoading] = useState(false);
+
+      const handleSubmit = async (values) => {
+        setLoading(true);
+        try {
+          const res = await api.login(values.username, values.password);
+          if (res && res.code === 0) {
+            if (res.data.user.role !== 'admin') {
+              antd.message.error('需要管理员权限');
+              return;
+            }
+            localStorage.setItem('admin_token', res.data.token);
+            localStorage.setItem('admin_user', JSON.stringify(res.data.user));
+            antd.message.success('登录成功');
+            onLogin(res.data.user);
+          } else {
+            antd.message.error(res?.message || '登录失败');
+          }
+        } catch (e) {
+          antd.message.error('网络错误');
+        }
+        setLoading(false);
+      };
+
+      return (
+        <div className="login-container">
+          <div className="login-card">
+            <div className="login-header">
+              <h1>🎮 NES 管理后台</h1>
+              <p>管理员登录</p>
+            </div>
+            <antd.Card>
+              <Form onFinish={handleSubmit} size="large">
+                <Form.Item name="username" rules={[{ required: true, message: '请输入用户名' }]}>
+                  <Input prefix="👤" placeholder="用户名" />
+                </Form.Item>
+                <Form.Item name="password" rules={[{ required: true, message: '请输入密码' }]}>
+                  <Input.Password prefix="🔑" placeholder="密码" />
+                </Form.Item>
+                <Form.Item>
+                  <Button type="primary" htmlType="submit" block loading={loading}>
+                    登 录
+                  </Button>
+                </Form.Item>
+              </Form>
+              <Text type="secondary" style={{ fontSize: 12 }}>
+                默认账号: admin / admin123
+              </Text>
+            </antd.Card>
+          </div>
+        </div>
+      );
+    }
+
+    // =============================================
+    // 仪表盘页面
+    // =============================================
+    function DashboardPage() {
+      const [stats, setStats] = useState(null);
+      const [loading, setLoading] = useState(true);
+
+      useEffect(() => {
+        (async () => {
+          const res = await api.getStats();
+          if (res && res.code === 0) setStats(res.data);
+          setLoading(false);
+        })();
+      }, []);
+
+      if (loading) return <antd.Spin size="large" style={{ display: 'block', textAlign: 'center', padding: 100 }} />;
+      if (!stats) return <antd.Empty description="加载失败" />;
+
+      return (
+        <div>
+          <Title level={4}>📊 系统概览</Title>
+          <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+            <Col xs={12} sm={6}><antd.Card><div className="stat-card primary"><div className="stat-value">{stats.totalUsers}</div><div className="stat-label">总用户</div></div></antd.Card></Col>
+            <Col xs={12} sm={6}><antd.Card><div className="stat-card success"><div className="stat-value">{stats.totalGames}</div><div className="stat-label">总游戏</div></div></antd.Card></Col>
+            <Col xs={12} sm={6}><antd.Card><div className="stat-card warning"><div className="stat-value">{stats.pendingGames}</div><div className="stat-label">待审核</div></div></antd.Card></Col>
+            <Col xs={12} sm={6}><antd.Card><div className="stat-card danger"><div className="stat-value">{stats.totalPlays}</div><div className="stat-label">总游玩次数</div></div></antd.Card></Col>
+          </Row>
+
+          <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
+            <Col xs={12} sm={6}><antd.Card><Statistic title="今日新增用户" value={stats.todayUsers} /></antd.Card></Col>
+            <Col xs={12} sm={6}><antd.Card><Statistic title="今日新增游戏" value={stats.todayGames} /></antd.Card></Col>
+            <Col xs={12} sm={6}><antd.Card><Statistic title="存档总数" value={stats.totalSaves} /></antd.Card></Col>
+            <Col xs={12} sm={6}><antd.Card><Statistic title="游戏分类数" value={stats.totalCategories} /></antd.Card></Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col xs={24} md={12}>
+              <antd.Card title="🔥 热门游戏" size="small">
+                {stats.popularGames.map((g, i) => (
+                  <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <Space>
+                      <Badge count={i + 1} style={{ backgroundColor: i < 3 ? '#ff4d4f' : '#999' }} />
+                      <Text>{g.category_icon} {g.title}</Text>
+                    </Space>
+                    <Text type="secondary">{g.play_count} 次</Text>
+                  </div>
+                ))}
+              </antd.Card>
+            </Col>
+            <Col xs={24} md={12}>
+              <antd.Card title="🆕 最新上传" size="small">
+                {stats.recentGames.map((g) => (
+                  <div key={g.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid #f0f0f0' }}>
+                    <Text>{g.category_icon} {g.title}</Text>
+                    <Text type="secondary">{g.play_count} 次</Text>
+                  </div>
+                ))}
+              </antd.Card>
+            </Col>
+          </Row>
+        </div>
+      );
+    }
+
+    // =============================================
+    // 游戏管理页面
+    // =============================================
+    function GamesPage() {
+      const [games, setGames] = useState([]);
+      const [total, setTotal] = useState(0);
+      const [loading, setLoading] = useState(false);
+      const [page, setPage] = useState(1);
+      const [filters, setFilters] = useState({});
+      const [categories, setCategories] = useState([]);
+      const [modalVisible, setModalVisible] = useState(false);
+      const [editing, setEditing] = useState(null);
+      const [form] = Form.useForm();
+      const [submitting, setSubmitting] = useState(false);
+
+      const fetchGames = useCallback(async (p = page, f = filters) => {
+        setLoading(true);
+        const res = await api.getGames({ page: p, pageSize: 10, ...f });
+        if (res && res.code === 0) {
+          setGames(res.data.list);
+          setTotal(res.data.total);
+        }
+        setLoading(false);
+      }, [page, filters]);
+
+      useEffect(() => { fetchGames(); }, []);
+      useEffect(() => {
+        api.getCategories().then(res => {
+          if (res && res.code === 0) setCategories(res.data);
+        });
+      }, []);
+
+      const handleStatusChange = async (id, status) => {
+        const res = await api.updateGameStatus(id, status);
+        if (res && res.code === 0) { antd.message.success('操作成功'); fetchGames(); }
+        else antd.message.error(res?.message || '操作失败');
+      };
+
+      const handleDelete = async (id) => {
+        const res = await api.deleteGame(id);
+        if (res && res.code === 0) { antd.message.success('删除成功'); fetchGames(); }
+        else antd.message.error(res?.message || '删除失败');
+      };
+
+      const openCreate = () => {
+        setEditing(null);
+        form.resetFields();
+        setModalVisible(true);
+      };
+
+      const openEdit = (record) => {
+        setEditing(record);
+        form.setFieldsValue({
+          title: record.title,
+          category_id: record.category_id,
+          description: record.description,
+          status: record.status,
+        });
+        setModalVisible(true);
+      };
+
+      const handleSave = async (values) => {
+        setSubmitting(true);
+        try {
+          let res;
+          if (editing) {
+            res = await api.updateGame(editing.id, values);
+          } else {
+            // 新增游戏 - 需要上传 ROM
+            const romFile = values.rom_file;
+            if (!romFile || !romFile.file) {
+              antd.message.error('请选择 ROM 文件');
+              setSubmitting(false);
+              return;
+            }
+            const formData = new FormData();
+            formData.append('rom', romFile.file);
+            formData.append('title', values.title);
+            if (values.category_id) formData.append('category_id', values.category_id);
+            if (values.description) formData.append('description', values.description);
+            if (values.status) formData.append('status', values.status);
+            res = await api.createGame(formData);
+          }
+          if (res && res.code === 0) {
+            antd.message.success(editing ? '更新成功' : '新增成功');
+            setModalVisible(false);
+            form.resetFields();
+            setEditing(null);
+            fetchGames();
+          } else {
+            antd.message.error(res?.message || '操作失败');
+          }
+        } catch (e) {
+          antd.message.error('操作失败');
+        }
+        setSubmitting(false);
+      };
+
+      const statusMap = {
+        pending: { color: 'orange', text: '待审核' },
+        approved: { color: 'green', text: '已通过' },
+        rejected: { color: 'red', text: '已拒绝' },
+        banned: { color: 'default', text: '已封禁' },
+      };
+
+      const columns = [
+        { title: 'ID', dataIndex: 'id', width: 60 },
+        { title: '游戏名称', dataIndex: 'title', width: 200, ellipsis: true },
+        { title: '分类', dataIndex: 'category_name', width: 100, render: (v, r) => v ? `${r.category_icon} ${v}` : '-' },
+        { title: '大小', dataIndex: 'file_size', width: 80, render: v => `${(v / 1024).toFixed(0)}KB` },
+        { title: '游玩', dataIndex: 'play_count', width: 70 },
+        { title: '评分', dataIndex: 'rating', width: 120, render: v => <Rate disabled value={v} allowHalf style={{ fontSize: 12 }} /> },
+        { title: '上传者', dataIndex: 'uploader_name', width: 100 },
+        { title: '状态', dataIndex: 'status', width: 100, render: v => <Tag color={statusMap[v]?.color}>{statusMap[v]?.text}</Tag> },
+        { title: '上传时间', dataIndex: 'created_at', width: 160, render: v => new Date(v).toLocaleString('zh-CN') },
+        {
+          title: '操作', width: 220, render: (_, record) => (
+            <Space size="small">
+              <Button type="link" size="small" onClick={() => openEdit(record)}>编辑</Button>
+              {record.status === 'pending' && (
+                <>
+                  <Button type="link" size="small" onClick={() => handleStatusChange(record.id, 'approved')}>通过</Button>
+                  <Button type="link" size="small" danger onClick={() => handleStatusChange(record.id, 'rejected')}>拒绝</Button>
+                </>
+              )}
+              {record.status === 'approved' && (
+                <Button type="link" size="small" danger onClick={() => handleStatusChange(record.id, 'banned')}>封禁</Button>
+              )}
+              {(record.status === 'rejected' || record.status === 'banned') && (
+                <Button type="link" size="small" onClick={() => handleStatusChange(record.id, 'approved')}>恢复</Button>
+              )}
+              <Popconfirm title="确定要删除这个游戏吗？" onConfirm={() => handleDelete(record.id)}>
+                <Button type="link" size="small" danger>删除</Button>
+              </Popconfirm>
+            </Space>
+          ),
+        },
+      ];
+
+      return (
+        <div>
+          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+            <Space>
+              <Input.Search placeholder="搜索游戏名称" style={{ width: 240 }} onSearch={v => { const f = { ...filters, keyword: v }; setFilters(f); setPage(1); fetchGames(1, f); }} />
+              <Select placeholder="状态筛选" style={{ width: 120 }} allowClear onChange={v => { const f = { ...filters, status: v }; setFilters(f); setPage(1); fetchGames(1, f); }}>
+                <Select.Option value="pending">待审核</Select.Option>
+                <Select.Option value="approved">已通过</Select.Option>
+                <Select.Option value="rejected">已拒绝</Select.Option>
+                <Select.Option value="banned">已封禁</Select.Option>
+              </Select>
+              <Select placeholder="分类" style={{ width: 140 }} allowClear onChange={v => { const f = { ...filters, category_id: v }; setFilters(f); setPage(1); fetchGames(1, f); }}>
+                {categories.map(c => <Select.Option key={c.id} value={c.id}>{c.icon} {c.name}</Select.Option>)}
+              </Select>
+            </Space>
+            <Button type="primary" onClick={openCreate}>+ 新增游戏</Button>
+          </div>
+          <antd.Card>
+            <Table
+              rowKey="id"
+              columns={columns}
+              dataSource={games}
+              loading={loading}
+              pagination={{ current: page, total, pageSize: 10, onChange: (p) => { setPage(p); fetchGames(p); } }}
+              size="small"
+              scroll={{ x: 1100 }}
+            />
+          </antd.Card>
+
+          <Modal
+            title={editing ? '编辑游戏' : '新增游戏'}
+            open={modalVisible}
+            onCancel={() => { setModalVisible(false); setEditing(null); form.resetFields(); }}
+            onOk={() => form.submit()}
+            width={600}
+            confirmLoading={submitting}
+          >
+            <Form form={form} layout="vertical" onFinish={handleSave}>
+              <Form.Item name="title" label="游戏名称" rules={[{ required: true, message: '请输入游戏名称' }]}>
+                <Input placeholder="如：魂斗罗" />
+              </Form.Item>
+              {!editing && (
+                <Form.Item name="rom_file" label="ROM 文件" rules={[{ required: true, message: '请选择 ROM 文件' }]}
+                  valuePropName="file" getValueFromEvent={(e) => e && e.file ? { file: e.file } : e}>
+                  <Upload beforeUpload={() => false} maxCount={1} accept=".nes">
+                    <Button>选择 .nes 文件</Button>
+                  </Upload>
+                </Form.Item>
+              )}
+              <Form.Item name="category_id" label="游戏分类">
+                <Select placeholder="选择分类" allowClear>
+                  {categories.map(c => <Select.Option key={c.id} value={c.id}>{c.icon} {c.name}</Select.Option>)}
+                </Select>
+              </Form.Item>
+              <Form.Item name="description" label="游戏描述">
+                <Input.TextArea rows={3} placeholder="游戏简介..." />
+              </Form.Item>
+              {editing && (
+                <Form.Item name="status" label="审核状态">
+                  <Select>
+                    <Select.Option value="pending">待审核</Select.Option>
+                    <Select.Option value="approved">已通过</Select.Option>
+                    <Select.Option value="rejected">已拒绝</Select.Option>
+                    <Select.Option value="banned">已封禁</Select.Option>
+                  </Select>
+                </Form.Item>
+              )}
+            </Form>
+          </Modal>
+        </div>
+      );
+    }
+
+    // =============================================
+    // 用户管理页面
+    // =============================================
+    function UsersPage() {
+      const [users, setUsers] = useState([]);
+      const [total, setTotal] = useState(0);
+      const [loading, setLoading] = useState(false);
+      const [page, setPage] = useState(1);
+      const [keyword, setKeyword] = useState('');
+      const [modalVisible, setModalVisible] = useState(false);
+      const [editing, setEditing] = useState(null);
+      const [form] = Form.useForm();
+      const [submitting, setSubmitting] = useState(false);
+
+      const fetchUsers = useCallback(async (p = page, kw = keyword) => {
+        setLoading(true);
+        const params = { page: p, pageSize: 10 };
+        if (kw) params.keyword = kw;
+        const res = await api.getUsers(params);
+        if (res && res.code === 0) {
+          setUsers(res.data.list);
+          setTotal(res.data.total);
+        }
+        setLoading(false);
+      }, [page, keyword]);
+
+      useEffect(() => { fetchUsers(); }, []);
+
+      const handleStatusChange = async (id, status) => {
+        const res = await api.updateUserStatus(id, status);
+        if (res && res.code === 0) { antd.message.success('操作成功'); fetchUsers(); }
+        else antd.message.error(res?.message || '操作失败');
+      };
+
+      const handleRoleChange = async (id, role) => {
+        const res = await api.updateUserRole(id, role);
+        if (res && res.code === 0) { antd.message.success('操作成功'); fetchUsers(); }
+        else antd.message.error(res?.message || '操作失败');
+      };
+
+      const handleDelete = async (id) => {
+        const res = await api.deleteUser(id);
+        if (res && res.code === 0) { antd.message.success('删除成功'); fetchUsers(); }
+        else antd.message.error(res?.message || '删除失败');
+      };
+
+      const openCreate = () => {
+        setEditing(null);
+        form.resetFields();
+        setModalVisible(true);
+      };
+
+      const openEdit = (record) => {
+        setEditing(record);
+        form.setFieldsValue({
+          username: record.username,
+          nickname: record.nickname,
+          email: record.email,
+          role: record.role,
+          status: record.status,
+        });
+        setModalVisible(true);
+      };
+
+      const handleSave = async (values) => {
+        setSubmitting(true);
+        try {
+          let res;
+          if (editing) {
+            // 编辑模式
+            const updateData = {};
+            if (values.nickname !== undefined) updateData.nickname = values.nickname;
+            if (values.email !== undefined) updateData.email = values.email;
+            if (values.role !== undefined) updateData.role = values.role;
+            if (values.status !== undefined) updateData.status = values.status;
+            if (values.password) updateData.password = values.password;
+            res = await api.updateUser(editing.id, updateData);
+          } else {
+            // 新增模式
+            if (!values.username || !values.email || !values.password) {
+              antd.message.error('用户名、邮箱和密码不能为空');
+              setSubmitting(false);
+              return;
+            }
+            res = await api.createUser(values);
+          }
+          if (res && res.code === 0) {
+            antd.message.success(editing ? '更新成功' : '新增成功');
+            setModalVisible(false);
+            form.resetFields();
+            setEditing(null);
+            fetchUsers();
+          } else {
+            antd.message.error(res?.message || '操作失败');
+          }
+        } catch (e) {
+          antd.message.error('操作失败');
+        }
+        setSubmitting(false);
+      };
+
+      const columns = [
+        { title: 'ID', dataIndex: 'id', width: 60 },
+        { title: '用户名', dataIndex: 'username', width: 120 },
+        { title: '昵称', dataIndex: 'nickname', width: 120 },
+        { title: '邮箱', dataIndex: 'email', width: 200 },
+        { title: '角色', dataIndex: 'role', width: 100, render: v => <Tag color={v === 'admin' ? 'red' : 'blue'}>{v === 'admin' ? '管理员' : '用户'}</Tag> },
+        { title: '状态', dataIndex: 'status', width: 100, render: v => <Badge status={v === 'active' ? 'success' : 'error'} text={v === 'active' ? '正常' : '已禁用'} /> },
+        { title: '注册时间', dataIndex: 'created_at', width: 160, render: v => new Date(v).toLocaleString('zh-CN') },
+        { title: '最后登录', dataIndex: 'last_login_at', width: 160, render: v => v ? new Date(v).toLocaleString('zh-CN') : '-' },
+        {
+          title: '操作', width: 220, render: (_, record) => (
+            <Space size="small">
+              <Button type="link" size="small" onClick={() => openEdit(record)}>编辑</Button>
+              {record.status === 'active' ? (
+                <Popconfirm title="确定要禁用该用户吗？" onConfirm={() => handleStatusChange(record.id, 'banned')}>
+                  <Button type="link" size="small" danger>禁用</Button>
+                </Popconfirm>
+              ) : (
+                <Button type="link" size="small" onClick={() => handleStatusChange(record.id, 'active')}>启用</Button>
+              )}
+              <Popconfirm title="确定要删除该用户吗？此操作不可恢复！" onConfirm={() => handleDelete(record.id)}>
+                <Button type="link" size="small" danger>删除</Button>
+              </Popconfirm>
+            </Space>
+          ),
+        },
+      ];
+
+      return (
+        <div>
+          <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between' }}>
+            <Input.Search placeholder="搜索用户名/昵称/邮箱" style={{ width: 300 }} onSearch={v => { setKeyword(v); setPage(1); fetchUsers(1, v); }} />
+            <Button type="primary" onClick={openCreate}>+ 新增用户</Button>
+          </div>
+          <antd.Card>
+            <Table
+              rowKey="id"
+              columns={columns}
+              dataSource={users}
+              loading={loading}
+              pagination={{ current: page, total, pageSize: 10, onChange: (p) => { setPage(p); fetchUsers(p); } }}
+              size="small"
+              scroll={{ x: 1100 }}
+            />
+          </antd.Card>
+
+          <Modal
+            title={editing ? '编辑用户' : '新增用户'}
+            open={modalVisible}
+            onCancel={() => { setModalVisible(false); setEditing(null); form.resetFields(); }}
+            onOk={() => form.submit()}
+            width={500}
+            confirmLoading={submitting}
+          >
+            <Form form={form} layout="vertical" onFinish={handleSave}>
+              {!editing && (
+                <>
+                  <Form.Item name="username" label="用户名" rules={[{ required: true, message: '请输入用户名' }]}>
+                    <Input placeholder="3-20 个字符" disabled={!!editing} />
+                  </Form.Item>
+                  <Form.Item name="password" label="密码" rules={[{ required: true, message: '请输入密码' }, { min: 6, message: '密码至少 6 位' }]}>
+                    <Input.Password placeholder="至少 6 位" />
+                  </Form.Item>
+                </>
+              )}
+              <Form.Item name="nickname" label="昵称">
+                <Input placeholder="显示名称" />
+              </Form.Item>
+              <Form.Item name="email" label="邮箱" rules={[{ required: !editing, type: 'email', message: '请输入有效邮箱' }]}>
+                <Input placeholder="user@example.com" />
+              </Form.Item>
+              <Form.Item name="role" label="角色">
+                <Select>
+                  <Select.Option value="user">普通用户</Select.Option>
+                  <Select.Option value="admin">管理员</Select.Option>
+                </Select>
+              </Form.Item>
+              {editing && (
+                <Form.Item name="status" label="状态">
+                  <Select>
+                    <Select.Option value="active">正常</Select.Option>
+                    <Select.Option value="banned">已禁用</Select.Option>
+                  </Select>
+                </Form.Item>
+              )}
+              {editing && (
+                <Form.Item name="password" label="重置密码" extra="留空则不修改密码">
+                  <Input.Password placeholder="留空则不修改" />
+                </Form.Item>
+              )}
+            </Form>
+          </Modal>
+        </div>
+      );
+    }
+
+    // =============================================
+    // 分类管理页面
+    // =============================================
+    function CategoriesPage() {
+      const [categories, setCategories] = useState([]);
+      const [loading, setLoading] = useState(false);
+      const [modalVisible, setModalVisible] = useState(false);
+      const [editing, setEditing] = useState(null);
+      const [form] = Form.useForm();
+
+      const fetchCategories = async () => {
+        setLoading(true);
+        const res = await api.getCategories();
+        if (res && res.code === 0) setCategories(res.data);
+        setLoading(false);
+      };
+
+      useEffect(() => { fetchCategories(); }, []);
+
+      const handleSave = async (values) => {
+        let res;
+        if (editing) {
+          res = await api.updateCategory(editing.id, values);
+        } else {
+          res = await api.createCategory(values);
+        }
+        if (res && res.code === 0) {
+          antd.message.success(editing ? '更新成功' : '新增成功');
+          setModalVisible(false);
+          form.resetFields();
+          setEditing(null);
+          fetchCategories();
+        } else {
+          antd.message.error(res?.message || '操作失败');
+        }
+      };
+
+      const handleDelete = async (id) => {
+        const res = await api.deleteCategory(id);
+        if (res && res.code === 0) { antd.message.success('删除成功'); fetchCategories(); }
+        else antd.message.error(res?.message || '删除失败');
+      };
+
+      const columns = [
+        { title: 'ID', dataIndex: 'id', width: 60 },
+        { title: '图标', dataIndex: 'icon', width: 60, render: v => <span style={{ fontSize: 20 }}>{v}</span> },
+        { title: '名称', dataIndex: 'name', width: 150 },
+        { title: '标识', dataIndex: 'slug', width: 120, render: v => <Tag>{v}</Tag> },
+        { title: '排序', dataIndex: 'sort_order', width: 80 },
+        { title: '游戏数', dataIndex: 'game_count', width: 80 },
+        { title: '创建时间', dataIndex: 'created_at', width: 160, render: v => new Date(v).toLocaleString('zh-CN') },
+        {
+          title: '操作', width: 140, render: (_, record) => (
+            <Space>
+              <Button type="link" size="small" onClick={() => { setEditing(record); form.setFieldsValue(record); setModalVisible(true); }}>编辑</Button>
+              <Popconfirm title="确定要删除该分类吗？" onConfirm={() => handleDelete(record.id)}>
+                <Button type="link" size="small" danger>删除</Button>
+              </Popconfirm>
+            </Space>
+          ),
+        },
+      ];
+
+      return (
+        <div>
+          <div style={{ marginBottom: 16 }}>
+            <Button type="primary" onClick={() => { setEditing(null); form.resetFields(); setModalVisible(true); }}>
+              + 新增分类
+            </Button>
+          </div>
+          <antd.Card>
+            <Table rowKey="id" columns={columns} dataSource={categories} loading={loading} pagination={false} size="small" />
+          </antd.Card>
+
+          <Modal
+            title={editing ? '编辑分类' : '新增分类'}
+            open={modalVisible}
+            onCancel={() => { setModalVisible(false); setEditing(null); form.resetFields(); }}
+            onOk={() => form.submit()}
+          >
+            <Form form={form} layout="vertical" onFinish={handleSave}>
+              <Form.Item name="name" label="分类名称" rules={[{ required: true }]}>
+                <Input placeholder="如：动作、冒险" />
+              </Form.Item>
+              <Form.Item name="slug" label="标识" rules={[{ required: true }]}>
+                <Input placeholder="如：action、adventure" disabled={!!editing} />
+              </Form.Item>
+              <Form.Item name="icon" label="图标">
+                <Input placeholder="如：⚔️" />
+              </Form.Item>
+              <Form.Item name="sort_order" label="排序">
+                <InputNumber min={0} style={{ width: '100%' }} />
+              </Form.Item>
+            </Form>
+          </Modal>
+        </div>
+      );
+    }
+
+    // =============================================
+    // 评论管理页面
+    // =============================================
+    function CommentsPage() {
+      const [comments, setComments] = useState([]);
+      const [total, setTotal] = useState(0);
+      const [loading, setLoading] = useState(false);
+      const [page, setPage] = useState(1);
+
+      const fetchComments = async (p = page) => {
+        setLoading(true);
+        const res = await api.getComments({ page: p, pageSize: 15 });
+        if (res && res.code === 0) {
+          setComments(res.data.list);
+          setTotal(res.data.total);
+        }
+        setLoading(false);
+      };
+
+      useEffect(() => { fetchComments(); }, []);
+
+      const columns = [
+        { title: 'ID', dataIndex: 'id', width: 60 },
+        { title: '用户', dataIndex: 'nickname', width: 100 },
+        { title: '游戏', dataIndex: 'game_title', width: 150, ellipsis: true },
+        { title: '内容', dataIndex: 'content', ellipsis: true },
+        { title: '评分', dataIndex: 'rating', width: 120, render: v => v ? <Rate disabled value={v} style={{ fontSize: 12 }} /> : '-' },
+        { title: '状态', dataIndex: 'status', width: 80, render: v => <Badge status={v === 'visible' ? 'success' : 'default'} text={v === 'visible' ? '显示' : '隐藏'} /> },
+        { title: '时间', dataIndex: 'created_at', width: 150, render: v => new Date(v).toLocaleString('zh-CN') },
+        {
+          title: '操作', width: 140, render: (_, record) => (
+            <Space size="small">
+              <Button type="link" size="small" onClick={() => api.updateCommentStatus(record.id, record.status === 'visible' ? 'hidden' : 'visible').then(fetchComments)}>
+                {record.status === 'visible' ? '隐藏' : '显示'}
+              </Button>
+              <Popconfirm title="确定要删除该评论吗？" onConfirm={() => api.deleteComment(record.id).then(fetchComments)}>
+                <Button type="link" size="small" danger>删除</Button>
+              </Popconfirm>
+            </Space>
+          ),
+        },
+      ];
+
+      return (
+        <antd.Card>
+          <Table
+            rowKey="id"
+            columns={columns}
+            dataSource={comments}
+            loading={loading}
+            pagination={{ current: page, total, pageSize: 15, onChange: (p) => { setPage(p); fetchComments(p); } }}
+            size="small"
+            scroll={{ x: 1000 }}
+          />
+        </antd.Card>
+      );
+    }
+
+    // =============================================
+    // 系统设置页面
+    // =============================================
+    function SettingsPage() {
+      const [settings, setSettings] = useState([]);
+      const [loading, setLoading] = useState(true);
+      const [saving, setSaving] = useState(false);
+      const [form] = Form.useForm();
+
+      useEffect(() => {
+        (async () => {
+          const res = await api.getSettings();
+          if (res && res.code === 0) {
+            setSettings(res.data);
+            const values = {};
+            res.data.forEach(s => {
+              values[s.setting_key] = s.setting_type === 'boolean' ? s.setting_value === 'true' : s.setting_value;
+            });
+            form.setFieldsValue(values);
+          }
+          setLoading(false);
+        })();
+      }, []);
+
+      const handleSave = async (values) => {
+        setSaving(true);
+        const payload = settings.map(s => ({
+          setting_key: s.setting_key,
+          setting_value: String(values[s.setting_key]),
+        }));
+        const res = await api.updateSettings(payload);
+        if (res && res.code === 0) antd.message.success('设置已保存');
+        else antd.message.error(res?.message || '保存失败');
+        setSaving(false);
+      };
+
+      if (loading) return <antd.Spin size="large" style={{ display: 'block', textAlign: 'center', padding: 100 }} />;
+
+      return (
+        <antd.Card title="⚙️ 系统设置">
+          <Form form={form} layout="vertical" onFinish={handleSave} style={{ maxWidth: 500 }}>
+            <Form.Item name="site_name" label="站点名称">
+              <Input />
+            </Form.Item>
+            <Form.Item name="site_description" label="站点描述">
+              <Input />
+            </Form.Item>
+            <Form.Item name="allow_register" label="允许注册" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+            <Form.Item name="allow_upload" label="允许用户上传" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+            <Form.Item name="maintenance_mode" label="维护模式" valuePropName="checked">
+              <Switch />
+            </Form.Item>
+            <Form.Item name="max_upload_size" label="最大上传大小 (MB)">
+              <InputNumber min={1} max={100} style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="default_game_status" label="新游戏默认状态">
+              <Select>
+                <Select.Option value="approved">自动通过</Select.Option>
+                <Select.Option value="pending">需要审核</Select.Option>
+              </Select>
+            </Form.Item>
+            <Form.Item>
+              <Button type="primary" htmlType="submit" loading={saving}>保存设置</Button>
+            </Form.Item>
+          </Form>
+        </antd.Card>
+      );
+    }
+
+    // =============================================
+    // 操作日志页面
+    // =============================================
+    function LogsPage() {
+      const [logs, setLogs] = useState([]);
+      const [total, setTotal] = useState(0);
+      const [loading, setLoading] = useState(false);
+      const [page, setPage] = useState(1);
+
+      const fetchLogs = async (p = page) => {
+        setLoading(true);
+        const res = await api.getLogs({ page: p, pageSize: 20 });
+        if (res && res.code === 0) {
+          setLogs(res.data.list);
+          setTotal(res.data.total);
+        }
+        setLoading(false);
+      };
+
+      useEffect(() => { fetchLogs(); }, []);
+
+      const actionMap = {
+        update_user_status: { color: 'orange', text: '修改用户状态' },
+        update_user_role: { color: 'blue', text: '修改用户角色' },
+        review_game: { color: 'green', text: '审核游戏' },
+        delete_game: { color: 'red', text: '删除游戏' },
+        create_category: { color: 'purple', text: '新增分类' },
+        update_category: { color: 'cyan', text: '编辑分类' },
+        delete_category: { color: 'magenta', text: '删除分类' },
+        update_settings: { color: 'gold', text: '更新设置' },
+      };
+
+      const columns = [
+        { title: 'ID', dataIndex: 'id', width: 60 },
+        { title: '管理员', dataIndex: 'admin_name', width: 100 },
+        { title: '操作', dataIndex: 'action', width: 120, render: v => <Tag color={actionMap[v]?.color}>{actionMap[v]?.text || v}</Tag> },
+        { title: '对象类型', dataIndex: 'target_type', width: 100 },
+        { title: '对象ID', dataIndex: 'target_id', width: 80 },
+        { title: '详情', dataIndex: 'detail', ellipsis: true },
+        { title: 'IP', dataIndex: 'ip_address', width: 130 },
+        { title: '时间', dataIndex: 'created_at', width: 160, render: v => new Date(v).toLocaleString('zh-CN') },
+      ];
+
+      return (
+        <antd.Card>
+          <Table
+            rowKey="id"
+            columns={columns}
+            dataSource={logs}
+            loading={loading}
+            pagination={{ current: page, total, pageSize: 20, onChange: (p) => { setPage(p); fetchLogs(p); } }}
+            size="small"
+            scroll={{ x: 1000 }}
+          />
+        </antd.Card>
+      );
+    }
+
+    // =============================================
+    // 主布局
+    // =============================================
+    function AdminLayout({ user, onLogout }) {
+      const [collapsed, setCollapsed] = useState(false);
+      const [currentPage, setCurrentPage] = useState('dashboard');
+
+      const menuItems = [
+        { key: 'dashboard', icon: '📊', label: '仪表盘' },
+        { key: 'games', icon: '🎮', label: '游戏管理' },
+        { key: 'users', icon: '👥', label: '用户管理' },
+        { key: 'categories', icon: '📁', label: '分类管理' },
+        { key: 'comments', icon: '💬', label: '评论管理' },
+        { key: 'settings', icon: '⚙️', label: '系统设置' },
+        { key: 'logs', icon: '📋', label: '操作日志' },
+      ];
+
+      const pageMap = {
+        dashboard: <DashboardPage />,
+        games: <GamesPage />,
+        users: <UsersPage />,
+        categories: <CategoriesPage />,
+        comments: <CommentsPage />,
+        settings: <SettingsPage />,
+        logs: <LogsPage />,
+      };
+
+      const userMenuItems = [
+        { key: 'home', label: <a href="/">返回前台</a> },
+        { key: 'logout', label: <span onClick={onLogout}>退出登录</span> },
+      ];
+
+      return (
+        <Layout style={{ minHeight: '100vh' }}>
+          <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed} theme="dark">
+            <div style={{ height: 32, margin: 16, color: '#fff', textAlign: 'center', fontWeight: 700, fontSize: collapsed ? 14 : 16 }}>
+              {collapsed ? '🎮' : '🎮 NES 管理后台'}
+            </div>
+            <Menu
+              theme="dark"
+              mode="inline"
+              selectedKeys={[currentPage]}
+              items={menuItems}
+              onClick={({ key }) => setCurrentPage(key)}
+            />
+          </Sider>
+          <Layout>
+            <Header style={{ padding: '0 24px', background: '#fff', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+              <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
+                <Space style={{ cursor: 'pointer' }}>
+                  <Avatar style={{ backgroundColor: '#1677ff' }}>{user?.nickname?.[0] || 'A'}</Avatar>
+                  <span>{user?.nickname || user?.username}</span>
+                </Space>
+              </Dropdown>
+            </Header>
+            <Content style={{ margin: 24, padding: 24, background: '#fff', borderRadius: 8, minHeight: 360 }}>
+              {pageMap[currentPage]}
+            </Content>
+          </Layout>
+        </Layout>
+      );
+    }
+
+    // =============================================
+    // 根组件
+    // =============================================
+    function App() {
+      const [user, setUser] = useState(() => {
+        try {
+          const saved = localStorage.getItem('admin_user');
+          return saved ? JSON.parse(saved) : null;
+        } catch { return null; }
+      });
+
+      const handleLogin = (u) => setUser(u);
+      const handleLogout = () => {
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_user');
+        setUser(null);
+      };
+
+      if (!user) return <LoginPage onLogin={handleLogin} />;
+      return <AdminLayout user={user} onLogout={handleLogout} />;
+    }
+
+    // 渲染
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>

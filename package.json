@@ -1,0 +1,16 @@
+{
+  "name": "nes-emulator",
+  "version": "1.0.0",
+  "description": "NES 红白机模拟器 - Vercel + Supabase 部署版",
+  "private": true,
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
