@@ -13,8 +13,15 @@ module.exports = async function handler(req, res) {
     return res.status(200).end();
   }
 
-  const { slug } = req.query;
-  const path = slug.join('/');
+  // 获取路径 - 兼容不同方式
+  let path = '';
+  if (req.query.slug) {
+    path = Array.isArray(req.query.slug) ? req.query.slug.join('/') : req.query.slug;
+  } else {
+    // 从 URL 中提取路径
+    const url = new URL(req.url, `http://${req.headers.host}`);
+    path = url.pathname.replace(/^\/api\//, '').replace(/\/$/, '');
+  }
   const method = req.method;
 
   try {
