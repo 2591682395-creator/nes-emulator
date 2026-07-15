@@ -15,10 +15,5 @@
     { "src": "/admin", "dest": "/public/admin/index.html" },
     { "src": "/admin/(.*)", "dest": "/public/admin/$1" },
     { "src": "/(.*)", "dest": "/public/$1" }
-  ],
-  "env": {
-    "SUPABASE_URL": "@supabase-url",
-    "SUPABASE_ANON_KEY": "@supabase-anon-key",
-    "SUPABASE_SERVICE_ROLE_KEY": "@supabase-service-role-key"
-  }
+  ]
 }
