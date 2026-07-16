@@ -97,6 +97,10 @@ class Emulator {
     return this.muted;
   }
 
+  setFastForward(enabled) {
+    this._control("fast-forward", Boolean(enabled));
+  }
+
   stop() {
     if (this.objectUrl) {
       URL.revokeObjectURL(this.objectUrl);

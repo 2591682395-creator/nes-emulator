@@ -77,6 +77,21 @@
             case "pause": emulator.pause?.(); break;
             case "restart": emulator.restart?.(); break;
             case "mute": emulator.setVolume?.(event.data.value ? 0 : 1); break;
+            case "fast-forward": {
+              const enabled = Boolean(event.data.value);
+              const manager = emulator.gameManager;
+              if (typeof manager?.setFastForward === "function") manager.setFastForward(enabled);
+              else if (typeof manager?.toggleFastForward === "function") {
+                if (Boolean(manager.fastForward) !== enabled) manager.toggleFastForward();
+              } else if (typeof emulator.setFastForward === "function") emulator.setFastForward(enabled);
+              else if (typeof emulator.toggleFastForward === "function") {
+                if (Boolean(emulator.fastForward) !== enabled) emulator.toggleFastForward();
+              } else if (manager) {
+                manager.fastForward = enabled;
+                manager.fastForwardEnabled = enabled;
+              }
+              break;
+            }
             case "key": {
               const code = event.data.value?.code;
               const pressed = Boolean(event.data.value?.pressed);

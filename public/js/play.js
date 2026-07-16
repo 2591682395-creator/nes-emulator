@@ -3,7 +3,7 @@
   const elements = {
     screen: document.getElementById("screen"), placeholder: document.getElementById("placeholder"),
     romFile: document.getElementById("romFile"), romName: document.getElementById("romName"),
-    pause: document.getElementById("btnPause"), reset: document.getElementById("btnReset"),
+    pause: document.getElementById("btnPause"), reset: document.getElementById("btnReset"), fast: document.getElementById("btnFastForward"),
     mute: document.getElementById("btnMute"), fullscreen: document.getElementById("btnFullscreen"),
     fps: document.getElementById("fpsDisplay"), status: document.getElementById("statusDisplay"),
     toast: document.getElementById("toast"), list: document.getElementById("gameList"),
@@ -14,14 +14,16 @@
     drawer: document.getElementById("gameDrawer"), drawerOpen: document.getElementById("openGameDrawer"),
     drawerClose: document.getElementById("closeGameDrawer"), drawerBackdrop: document.getElementById("drawerBackdrop"),
     mobileHeader: document.getElementById("mobilePlayHeader"), headerToggle: document.getElementById("mobileHeaderToggle"),
-    headerCollapse: document.getElementById("collapseMobileHeader")
+    headerCollapse: document.getElementById("collapseMobileHeader"), controlMenu: document.getElementById("controlMenu"),
+    menuOpen: document.getElementById("openControlMenu"), menuClose: document.getElementById("closeControlMenu")
   };
   const emulator = new Emulator({
     canvas: elements.screen,
     onStatusUpdate: status => { elements.status.textContent = status; },
     onFPS: status => { elements.fps.textContent = status; }
   });
-  let games = [], loaded = false, running = false, muted = false, toastTimer;
+  let games = [], loaded = false, running = false, muted = false, fastForward = false, toastTimer;
+  let lastTouchSelection = 0;
   const activePointers = new Map();
   const controlCodes = new Set(["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "KeyX", "KeyZ", "KeyA", "KeyS", "Enter", "ShiftRight"]);
   const escape = value => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
@@ -33,9 +35,12 @@
     toastTimer = setTimeout(() => elements.toast.classList.remove("show"), 2400);
   }
   function updateControls() {
-    [elements.pause, elements.reset, elements.mute, elements.fullscreen].forEach(button => { button.disabled = !loaded; });
+    [elements.pause, elements.reset, elements.mute, elements.fast, elements.fullscreen].forEach(button => { button.disabled = !loaded; });
     elements.pause.textContent = running ? "PAUSE" : "RESUME";
     elements.mute.textContent = muted ? "♪ 开启声音" : "♪ 声音";
+    elements.fast.textContent = fastForward ? "» 取消加速" : "» 加速";
+    elements.fast.classList.toggle("is-active", fastForward);
+    elements.fast.setAttribute("aria-pressed", String(fastForward));
   }
   function setConsoleStyle(style, announce = true) {
     if (isMobileLayout()) style = "psp";
@@ -63,7 +68,13 @@
     elements.headerToggle.setAttribute("aria-expanded", String(open));
     elements.headerToggle.querySelector("b").textContent = open ? "⌃" : "⌄";
   }
+  function setControlMenu(open) {
+    if (open) { setDrawer(false); setMobileHeader(false); }
+    elements.controlMenu.classList.toggle("is-open", open);
+    elements.menuOpen.setAttribute("aria-expanded", String(open));
+  }
   function setDrawer(open) {
+    if (open) setControlMenu(false);
     elements.drawer.classList.toggle("is-open", open);
     elements.drawerBackdrop.hidden = !open;
     elements.drawerOpen.setAttribute("aria-expanded", String(open));
@@ -208,15 +219,29 @@
   elements.drawerBackdrop.addEventListener("click", () => setDrawer(false));
   elements.headerToggle.addEventListener("click", () => setMobileHeader(!document.body.classList.contains("mobile-header-open")));
   elements.headerCollapse.addEventListener("click", () => setMobileHeader(false));
-  document.addEventListener("keydown", event => { if (event.key === "Escape") setDrawer(false); });
+  elements.menuOpen.addEventListener("click", () => setControlMenu(!elements.controlMenu.classList.contains("is-open")));
+  elements.menuClose.addEventListener("click", () => setControlMenu(false));
+  document.addEventListener("keydown", event => { if (event.key === "Escape") { setDrawer(false); setControlMenu(false); setMobileHeader(false); } });
   window.addEventListener("resize", syncResponsiveMode);
   window.addEventListener("orientationchange", () => setTimeout(syncResponsiveMode, 120));
-  elements.list.addEventListener("click", event => { const item = event.target.closest("[data-id]"); if (item) selectGame(item.dataset.id); });
+  function handleGameSelection(event) {
+    const item = event.target.closest(".game-list-item[data-id]");
+    if (!item) return;
+    if (event.type === "click" && Date.now() - lastTouchSelection < 500) return;
+    if (event.type === "pointerup" && event.pointerType !== "mouse") {
+      lastTouchSelection = Date.now();
+      event.preventDefault();
+    }
+    selectGame(item.dataset.id);
+  }
+  elements.list.addEventListener("pointerup", handleGameSelection);
+  elements.list.addEventListener("click", handleGameSelection);
   elements.search.addEventListener("input", event => renderList(event.target.value));
   elements.romFile.addEventListener("change", async event => { const file = event.target.files[0]; if (file) finishLoading(await file.arrayBuffer(), file.name, file.name); });
   elements.pause.addEventListener("click", () => { running ? emulator.pause() : emulator.start(); running = !running; updateControls(); });
   elements.reset.addEventListener("click", () => { emulator.reset(); running = true; updateControls(); toast("游戏已重置"); });
   elements.mute.addEventListener("click", () => { muted = emulator.toggleMute(); updateControls(); });
+  elements.fast.addEventListener("click", () => { if (!loaded) return; fastForward = !fastForward; emulator.setFastForward(fastForward); updateControls(); toast(fastForward ? "已开启加速" : "已恢复正常速度"); });
   elements.fullscreen.addEventListener("click", () => document.fullscreenElement ? document.exitFullscreen() : document.getElementById("screenWrapper").requestFullscreen().catch(() => toast("当前浏览器不支持全屏")));
   document.addEventListener("fullscreenchange", () => { elements.fullscreen.textContent = document.fullscreenElement ? "退出全屏" : "全屏"; });
 

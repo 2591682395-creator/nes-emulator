@@ -14,6 +14,7 @@
       <button id="collapseMobileHeader" aria-label="收起顶部标头">收起 ×</button>
     </header>
     <button class="mobile-library-button" id="openGameDrawer" aria-controls="gameDrawer" aria-expanded="false"><span>▤</span> 选择游戏</button>
+    <button class="mobile-control-menu-button" id="openControlMenu" aria-controls="controlMenu" aria-expanded="false"><span>☰</span> 菜单</button>
   </div>
   <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
   <nav class="navbar" aria-label="主导航"><div class="nav-container">
@@ -60,7 +61,6 @@
           <div class="center-controls">
             <label for="romFile" class="file-label">+ 本地 ROM</label><input type="file" id="romFile" accept=".nes,.gb,.gbc,.gba" hidden><span class="rom-name" id="romName">未选择文件</span>
             <div class="system-keys"><button class="console-key" data-game-key="ShiftRight">SELECT</button><button class="console-key" data-game-key="Enter">START</button></div>
-            <div class="utility-keys"><button id="btnPause" disabled>PAUSE</button><button id="btnFullscreen" disabled>全屏</button></div>
           </div>
           <div class="action-controls" aria-label="动作按键">
             <button class="console-key action-y" data-game-key="KeyX" aria-label="Y 键">△<small>Y</small></button>
@@ -69,7 +69,7 @@
             <button class="console-key action-a" data-game-key="KeyZ" aria-label="X 键">□<small>X</small></button>
           </div>
         </div>
-        <div class="machine-utilities"><button id="btnReset" disabled>↻ 重置</button><button id="btnMute" disabled>♪ 声音</button></div>
+        <div class="machine-utilities" id="controlMenu"><div class="tool-menu-title"><span>快捷菜单</span><button id="closeControlMenu" aria-label="关闭快捷菜单">×</button></div><button id="btnPause" disabled>PAUSE</button><button id="btnReset" disabled>↻ 重置</button><button id="btnMute" disabled>♪ 声音</button><button id="btnFastForward" class="toggle-tool" disabled aria-pressed="false">» 加速</button><button id="btnFullscreen" disabled>全屏</button></div>
       </section>
 
       <aside class="help-panel"><span class="section-kicker">操作指南</span><h2>实体按键</h2><p class="control-status"><span></span>机身按钮已连接</p><dl class="key-list"><div><dt>移动</dt><dd><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></dd></div><div><dt>A / B</dt><dd><kbd>X</kbd><kbd>Z</kbd></dd></div><div><dt>开始 / 选择</dt><dd><kbd>Enter</kbd><kbd>Shift</kbd></dd></div></dl><p class="help-note">可以直接点击或触摸掌机按钮。键盘操作时，对应的机身按键也会同步下沉。</p></aside>
