@@ -6,9 +6,16 @@
   <link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/nav.css">
 </head>
 <body class="play-page">
-  <button class="mobile-library-button" id="openGameDrawer" aria-controls="gameDrawer" aria-expanded="false"><span>▤</span> 选择游戏</button>
+  <div class="mobile-fixed-ui">
+    <button class="mobile-header-toggle" id="mobileHeaderToggle" aria-controls="mobilePlayHeader" aria-expanded="false"><span>PSP</span><b>⌄</b></button>
+    <header class="mobile-play-header" id="mobilePlayHeader" aria-hidden="true">
+      <a href="/" class="mobile-play-logo"><span class="logo-mark">8</span><strong>童年游戏厅</strong></a>
+      <nav aria-label="手机端导航"><a href="/">首页</a><a href="/pages/categories.html">分类</a><a href="/pages/play.html" aria-current="page">游戏机</a></nav>
+      <button id="collapseMobileHeader" aria-label="收起顶部标头">收起 ×</button>
+    </header>
+    <button class="mobile-library-button" id="openGameDrawer" aria-controls="gameDrawer" aria-expanded="false"><span>▤</span> 选择游戏</button>
+  </div>
   <div class="drawer-backdrop" id="drawerBackdrop" hidden></div>
-  <div class="rotate-notice" aria-hidden="true"><span>↻</span><strong>请将手机竖起来</strong><small>竖屏模式拥有更好的操作空间</small></div>
   <nav class="navbar" aria-label="主导航"><div class="nav-container">
     <a href="/" class="nav-logo"><span class="logo-mark">8</span><span>童年游戏厅</span></a>
     <div class="nav-links"><a href="/" class="nav-link">首页</a><a href="/pages/categories.html" class="nav-link">游戏分类</a><a href="/pages/play.html" class="nav-link active" aria-current="page">游戏机</a></div>

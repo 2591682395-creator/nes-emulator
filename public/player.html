@@ -7,6 +7,14 @@
   <style>
     html, body, #game { width: 100%; height: 100%; margin: 0; background: #000; overflow: hidden; }
     #error { color: #fff; padding: 24px; font: 14px/1.6 sans-serif; }
+    /* The outer PSP shell provides touch controls, so EmulatorJS's overlay is unnecessary. */
+    [class*="virtualGamepad"], [id*="virtualGamepad"],
+    [class*="virtual-gamepad"], [id*="virtual-gamepad"] {
+      display: none !important;
+      visibility: hidden !important;
+      pointer-events: none !important;
+      opacity: 0 !important;
+    }
   </style>
 </head>
 <body>
@@ -32,6 +40,10 @@
       window.EJS_pathtodata = "https://cdn.emulatorjs.org/stable/data/";
       window.EJS_startOnLoaded = true;
       window.EJS_threads = false;
+      window.EJS_VirtualGamepadSettings = {
+        hidden: true,
+        opacity: 0,
+      };
       window.EJS_ready = () => notify("emulator-ready");
       window.EJS_onGameStart = () => notify("emulator-ready");
 
@@ -39,6 +51,21 @@
       loader.src = `${window.EJS_pathtodata}loader.js`;
       loader.onerror = () => notify("emulator-error", "EmulatorJS 核心下载失败");
       document.body.appendChild(loader);
+
+      const hideBuiltInGamepad = () => {
+        document.querySelectorAll(
+          '[class*="virtualGamepad"], [id*="virtualGamepad"], [class*="virtual-gamepad"], [id*="virtual-gamepad"]'
+        ).forEach((element) => {
+          element.hidden = true;
+          element.style.setProperty("display", "none", "important");
+          element.style.setProperty("pointer-events", "none", "important");
+        });
+      };
+      new MutationObserver(hideBuiltInGamepad).observe(document.body, {
+        childList: true,
+        subtree: true,
+      });
+      hideBuiltInGamepad();
 
       window.addEventListener("message", (event) => {
         if (event.origin !== location.origin || event.data?.type !== "emulator-control") return;

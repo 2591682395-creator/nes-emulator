@@ -12,7 +12,9 @@
     category: document.getElementById("gameCategory"), plays: document.getElementById("gamePlays"),
     machine: document.getElementById("gameMachine"), brand: document.getElementById("machineBrand"),
     drawer: document.getElementById("gameDrawer"), drawerOpen: document.getElementById("openGameDrawer"),
-    drawerClose: document.getElementById("closeGameDrawer"), drawerBackdrop: document.getElementById("drawerBackdrop")
+    drawerClose: document.getElementById("closeGameDrawer"), drawerBackdrop: document.getElementById("drawerBackdrop"),
+    mobileHeader: document.getElementById("mobilePlayHeader"), headerToggle: document.getElementById("mobileHeaderToggle"),
+    headerCollapse: document.getElementById("collapseMobileHeader")
   };
   const emulator = new Emulator({
     canvas: elements.screen,
@@ -51,7 +53,15 @@
     if (announce) toast(`已切换为 ${isPsp ? "PSP" : "Pixel Boy"} 外观`);
   }
   function isMobileLayout() {
-    return window.matchMedia("(max-width: 720px)").matches;
+    const coarsePointer = window.matchMedia("(hover: none) and (pointer: coarse)").matches;
+    const mobileScreen = Math.min(screen.width, screen.height) <= 820;
+    return window.matchMedia("(max-width: 900px)").matches || (coarsePointer && mobileScreen);
+  }
+  function setMobileHeader(open) {
+    document.body.classList.toggle("mobile-header-open", open);
+    elements.mobileHeader.setAttribute("aria-hidden", String(!open));
+    elements.headerToggle.setAttribute("aria-expanded", String(open));
+    elements.headerToggle.querySelector("b").textContent = open ? "⌃" : "⌄";
   }
   function setDrawer(open) {
     elements.drawer.classList.toggle("is-open", open);
@@ -63,7 +73,7 @@
   function syncResponsiveMode() {
     document.body.classList.toggle("mobile-play-mode", isMobileLayout());
     if (isMobileLayout()) setConsoleStyle("psp", false);
-    else setDrawer(false);
+    else { setDrawer(false); setMobileHeader(false); }
   }
   function renderList(filter = "") {
     const keyword = filter.trim().toLowerCase();
@@ -196,8 +206,11 @@
   elements.drawerOpen.addEventListener("click", () => setDrawer(true));
   elements.drawerClose.addEventListener("click", () => setDrawer(false));
   elements.drawerBackdrop.addEventListener("click", () => setDrawer(false));
+  elements.headerToggle.addEventListener("click", () => setMobileHeader(!document.body.classList.contains("mobile-header-open")));
+  elements.headerCollapse.addEventListener("click", () => setMobileHeader(false));
   document.addEventListener("keydown", event => { if (event.key === "Escape") setDrawer(false); });
-  window.matchMedia("(max-width: 720px)").addEventListener?.("change", syncResponsiveMode);
+  window.addEventListener("resize", syncResponsiveMode);
+  window.addEventListener("orientationchange", () => setTimeout(syncResponsiveMode, 120));
   elements.list.addEventListener("click", event => { const item = event.target.closest("[data-id]"); if (item) selectGame(item.dataset.id); });
   elements.search.addEventListener("input", event => renderList(event.target.value));
   elements.romFile.addEventListener("change", async event => { const file = event.target.files[0]; if (file) finishLoading(await file.arrayBuffer(), file.name, file.name); });
