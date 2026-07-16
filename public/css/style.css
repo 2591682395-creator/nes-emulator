@@ -170,7 +170,10 @@ body.mobile-play-mode #gameMachine.psp-console .machine-utilities .save-account 
   #gameMachine.psp-console .system-keys{gap:10px;align-items:center}
   #gameMachine.psp-console .system-keys button,#gameMachine.psp-console .utility-keys button,#gameMachine.psp-console .machine-utilities button{min-height:24px;height:24px;padding:3px 10px;line-height:1;white-space:nowrap;font-size:6px}
   #gameMachine.psp-console .machine-utilities{gap:6px;bottom:5px;width:max-content;max-width:82%;flex-wrap:nowrap}
-  #gameMachine.psp-console .machine-utilities .tool-menu-title,#gameMachine.psp-console .machine-utilities .save-account{display:none}
+  #gameMachine.psp-console .machine-utilities .tool-menu-title{display:none}
+  #gameMachine.psp-console .machine-utilities .save-account{display:flex;align-items:center;gap:5px;height:24px;min-height:24px;padding:0 4px;color:#cfd3dd;background:#1b1e25;border:1px solid #555c68;white-space:nowrap;font-size:6px}
+  #gameMachine.psp-console .machine-utilities .save-account span{max-width:74px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  #gameMachine.psp-console .machine-utilities .save-account button{height:20px;min-height:20px;padding:2px 7px;color:var(--yellow);background:#292e38;border:1px solid #69717e;white-space:nowrap;font-size:6px;line-height:1;cursor:pointer}
 }
 body.mobile-play-mode .game-sidebar{z-index:130}
 body.mobile-play-mode .drawer-backdrop{z-index:120}
@@ -205,4 +208,71 @@ body.mobile-play-mode .drawer-backdrop{z-index:200}
   body.mobile-play-mode #gameMachine.psp-console .action-controls .action-a{left:0;top:43px}
   body.mobile-play-mode #gameMachine.psp-console .center-controls{position:absolute;left:50%;bottom:0;width:180px;transform:translateX(-50%) scale(.72);transform-origin:bottom center;pointer-events:auto}
   body.mobile-play-mode #gameMachine.psp-console .machine-utilities{position:fixed;left:50%;top:50%;bottom:auto}
+}
+
+/* ===== 移动端禁用长按选择文字和上下文菜单 ===== */
+@supports (-webkit-touch-callout: none) {
+  /* 禁用所有游戏控制区域的长按菜单 */
+  .game-machine,
+  .game-machine *,
+  .dpad-control,
+  .dpad-control *,
+  .action-controls,
+  .action-controls *,
+  .system-keys,
+  .system-keys *,
+  .utility-keys,
+  .utility-keys *,
+  .machine-utilities,
+  .machine-utilities *,
+  .screen-wrapper,
+  .screen-wrapper *,
+  canvas,
+  .file-label,
+  .controls button,
+  .center-controls button,
+  .fullscreen-button,
+  .console-key,
+  .mobile-library-button,
+  .drawer-close {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* 禁用游戏机区域的上下文菜单 */
+  .game-machine {
+    -webkit-touch-callout: none;
+    touch-action: manipulation;
+  }
+
+  /* 确保按钮可以正常点击 */
+  .game-machine button,
+  .dpad-control button,
+  .action-controls button,
+  .system-keys button,
+  .utility-keys button,
+  .machine-utilities button,
+  .console-key {
+    touch-action: manipulation;
+    pointer-events: auto;
+  }
+}
+
+/* 额外的移动端优化 */
+@media (hover: none) and (pointer: coarse) {
+  /* 触摸设备 */
+  .game-machine,
+  .game-machine button,
+  .dpad-control,
+  .action-controls,
+  canvas {
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+  }
 }

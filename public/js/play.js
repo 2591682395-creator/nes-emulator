@@ -292,6 +292,66 @@
   setConsoleStyle(isMobileLayout() ? "psp" : (localStorage.getItem("preferred-console") === "psp" ? "psp" : "pixel"), false);
   syncResponsiveMode();
   bindConsoleControls();
+
+  // ===== 移动端禁用长按上下文菜单 =====
+  function preventMobileLongPress() {
+    // 禁用游戏机区域的上下文菜单
+    const gameMachine = document.getElementById('gameMachine');
+    if (gameMachine) {
+      gameMachine.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        return false;
+      });
+    }
+
+    // 禁用 canvas 的上下文菜单
+    const canvas = document.getElementById('screen');
+    if (canvas) {
+      canvas.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        return false;
+      });
+    }
+
+    // 禁用所有按钮的上下文菜单
+    document.querySelectorAll('.game-machine button, .dpad-control button, .action-controls button, .system-keys button').forEach(btn => {
+      btn.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        return false;
+      });
+    });
+
+    // 阻止长按选择文字
+    document.addEventListener('selectstart', (e) => {
+      if (e.target.closest('.game-machine') || e.target.closest('canvas')) {
+        e.preventDefault();
+        return false;
+      }
+    });
+
+    // 阻止长按弹出菜单（iOS Safari）
+    document.addEventListener('touchstart', (e) => {
+      if (e.target.closest('.game-machine') || e.target.closest('canvas')) {
+        // 允许正常的触摸事件，但阻止默认的长按行为
+        e.target.addEventListener('touchend', preventContextMenu, { once: true });
+      }
+    }, { passive: true });
+
+    function preventContextMenu(e) {
+      // 如果是长按（超过500ms），阻止默认行为
+      const touch = e.changedTouches[0];
+      if (touch) {
+        const target = document.elementFromPoint(touch.clientX, touch.clientY);
+        if (target && (target.closest('.game-machine') || target.closest('canvas'))) {
+          // 不需要额外处理，CSS 已经处理了
+        }
+      }
+    }
+  }
+
+  // 初始化移动端长按禁用
+  preventMobileLongPress();
+
   emulator.init();
   updateControls();
   updateSaveAccount();
