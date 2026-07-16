@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>游戏分类 - NES 红白机模拟器</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/nav.css">
+</head>
+<body>
+  <!-- 导航栏 -->
+  <nav class="navbar">
+    <div class="nav-container">
+      <a href="/" class="nav-logo">🎮 NES 模拟器</a>
+      <div class="nav-links">
+        <a href="/" class="nav-link">首页</a>
+        <a href="/pages/categories.html" class="nav-link active">游戏分类</a>
+        <a href="/pages/play.html" class="nav-link">开始游戏</a>
+      </div>
+      <a href="/pages/admin-login.html" class="nav-admin">管理后台</a>
+    </div>
+  </nav>
+
+  <!-- 主内容 -->
+  <main class="main-content">
+    <div class="page-header">
+      <h1>📂 游戏分类</h1>
+      <p>浏览所有游戏分类，找到你喜欢的游戏</p>
+    </div>
+
+    <!-- 分类筛选 -->
+    <div class="filter-bar">
+      <div class="category-tabs" id="categoryTabs">
+        <button class="tab-btn active" data-id="all">全部</button>
+        <!-- 动态加载分类标签 -->
+      </div>
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="搜索游戏..." />
+      </div>
+    </div>
+
+    <!-- 游戏列表 -->
+    <div class="game-grid" id="gameGrid">
+      <!-- 动态加载 -->
+    </div>
+
+    <!-- 加载更多 -->
+    <div class="load-more" id="loadMore" style="display: none;">
+      <button class="btn btn-secondary" onclick="loadMore()">加载更多</button>
+    </div>
+  </main>
+
+  <!-- 页脚 -->
+  <footer class="footer">
+    <p>© 2026 NES 红白机模拟器 - 在浏览器中重温经典</p>
+  </footer>
+
+  <script>
+    let currentCategory = 'all';
+    let currentPage = 1;
+    let totalPages = 1;
+
+    // 加载分类标签
+    async function loadCategoryTabs() {
+      try {
+        const res = await fetch('/api/categories');
+        const data = await res.json();
+        if (data.code === 0) {
+          const tabs = document.getElementById('categoryTabs');
+          data.data.forEach(cat => {
+            tabs.innerHTML += `<button class="tab-btn" data-id="${cat.id}">${cat.icon} ${cat.name}</button>`;
+          });
+
+          // 绑定点击事件
+          tabs.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+              tabs.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+              btn.classList.add('active');
+              currentCategory = btn.dataset.id;
+              currentPage = 1;
+              loadGames();
+            });
+          });
+        }
+      } catch (e) {
+        console.error('加载分类失败:', e);
+      }
+    }
+
+    // 加载游戏
+    async function loadGames(append = false) {
+      try {
+        const keyword = document.getElementById('searchInput').value;
+        let url = `/api/games?page=${currentPage}&pageSize=12`;
+        if (currentCategory !== 'all') url += `&category_id=${currentCategory}`;
+        if (keyword) url += `&keyword=${encodeURIComponent(keyword)}`;
+
+        const res = await fetch(url);
+        const data = await res.json();
+        if (data.code === 0) {
+          const grid = document.getElementById('gameGrid');
+          const html = data.data.list.map(game => createGameCard(game)).join('');
+
+          if (append) {
+            grid.innerHTML += html;
+          } else {
+            grid.innerHTML = html;
+          }
+
+          totalPages = data.data.totalPages;
+          document.getElementById('loadMore').style.display =
+            currentPage < totalPages ? 'block' : 'none';
+        }
+      } catch (e) {
+        console.error('加载游戏失败:', e);
+      }
+    }
+
+    // 创建游戏卡片
+    function createGameCard(game) {
+      return `
+        <a href="/pages/play.html?id=${game.id}" class="game-card">
+          <div class="game-card-cover-wrapper">
+            <img class="game-card-cover"
+                 src="${game.cover_path || '/uploads/covers/default.svg'}"
+                 alt="${game.title}"
+                 onerror="this.src='/uploads/covers/default.svg'">
+            <div class="game-card-title-tag">
+              <span>${game.title}</span>
+            </div>
+          </div>
+          <div class="game-card-info">
+            <div class="game-card-meta">
+              <span class="game-card-tag">${game.category_name || '未分类'}</span>
+              <span>${game.play_count || 0} 次</span>
+            </div>
+          </div>
+        </a>
+      `;
+    }
+
+    // 加载更多
+    function loadMore() {
+      currentPage++;
+      loadGames(true);
+    }
+
+    // 搜索
+    let searchTimer;
+    document.getElementById('searchInput').addEventListener('input', () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(() => {
+        currentPage = 1;
+        loadGames();
+      }, 300);
+    });
+
+    // 检查 URL 参数
+    const urlParams = new URLSearchParams(window.location.search);
+    const catParam = urlParams.get('cat');
+    if (catParam) {
+      currentCategory = catParam;
+    }
+
+    // 初始化
+    loadCategoryTabs();
+    loadGames();
+  </script>
+</body>
+</html>
