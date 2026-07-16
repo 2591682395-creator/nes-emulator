@@ -54,6 +54,15 @@
               const code = event.data.value?.code;
               const pressed = Boolean(event.data.value?.pressed);
               if (!code) break;
+              const inputIndexByCode = {
+                ArrowUp: 4, ArrowDown: 5, ArrowLeft: 6, ArrowRight: 7,
+                Enter: 3, ShiftRight: 2, KeyA: 10, KeyS: 11, KeyX: 8, KeyZ: 0
+              };
+              const inputIndex = inputIndexByCode[code];
+              if (Number.isInteger(inputIndex) && emulator.gameManager?.simulateInput) {
+                emulator.gameManager.simulateInput(0, inputIndex, pressed ? 1 : 0);
+                break;
+              }
               const keyByCode = {
                 ArrowUp: "ArrowUp", ArrowDown: "ArrowDown", ArrowLeft: "ArrowLeft", ArrowRight: "ArrowRight",
                 KeyX: "x", KeyZ: "z", KeyA: "a", KeyS: "s", Enter: "Enter", ShiftRight: "Shift"
