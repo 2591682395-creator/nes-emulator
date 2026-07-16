@@ -108,3 +108,23 @@ body.mobile-play-mode #gameMachine.psp-console .action-controls{position:relativ
   body.mobile-play-mode #gameMachine.psp-console .machine-utilities{bottom:7px}
   body.mobile-play-mode .toast{left:50%;bottom:12px;transform:translate(-50%,25px) rotate(0)}body.mobile-play-mode .toast.show{transform:translate(-50%,0)}
 }
+/* Full-viewport portrait rotation: fill the exchanged landscape canvas. */
+@media(orientation:portrait){
+  body.mobile-play-mode .play-content{display:block;width:100dvh;height:100vw;padding:0;overflow:hidden;background:#11141a}
+  body.mobile-play-mode .play-layout{width:100%;height:100%;margin:0}
+  body.mobile-play-mode #gameMachine.psp-console{position:relative;width:100%;height:100%;min-height:0;margin:0;padding:30px clamp(90px,17dvh,150px) 12px;border-width:2px;border-radius:34px;box-shadow:none;overflow:hidden}
+  body.mobile-play-mode #gameMachine.psp-console .psp-shoulder{top:-2px;height:30px}
+  body.mobile-play-mode #gameMachine.psp-console .machine-top{position:absolute;z-index:5;top:5px;left:0;right:0;height:22px}
+  body.mobile-play-mode #gameMachine.psp-console .machine-top .brand{top:0}
+  body.mobile-play-mode #gameMachine.psp-console .machine-top .power-light{right:14px;top:2px}
+  body.mobile-play-mode #gameMachine.psp-console .screen-bezel{position:relative;z-index:2;width:100%;height:100%;max-width:none;margin:0;padding:5px;display:flex;flex-direction:column;justify-content:center}
+  body.mobile-play-mode #gameMachine.psp-console .screen-wrapper{width:100%;height:auto;max-height:calc(100vw - 58px);aspect-ratio:4/3;margin:auto}
+  body.mobile-play-mode #gameMachine.psp-console .screen-status{position:absolute;left:8px;right:8px;bottom:3px}
+  body.mobile-play-mode #gameMachine.psp-console .machine-controls{position:absolute;z-index:4;inset:30px 8px 12px;display:block;width:auto;height:auto;margin:0;pointer-events:none}
+  body.mobile-play-mode #gameMachine.psp-console .left-controls{position:absolute;left:0;top:50%;display:flex;width:82px;transform:translateY(-50%);pointer-events:auto}
+  body.mobile-play-mode #gameMachine.psp-console .dpad-control{margin:0;transform:scale(.75)}
+  body.mobile-play-mode #gameMachine.psp-console .analog-stick{width:40px;height:40px;margin:-9px auto 0}
+  body.mobile-play-mode #gameMachine.psp-console .action-controls{position:absolute;right:0;top:50%;width:105px;height:105px;margin:0;transform:translateY(-50%) scale(.78);transform-origin:center;pointer-events:auto}
+  body.mobile-play-mode #gameMachine.psp-console .center-controls{position:absolute;left:50%;bottom:0;width:180px;transform:translateX(-50%) scale(.72);transform-origin:bottom center;pointer-events:auto}
+  body.mobile-play-mode #gameMachine.psp-console .machine-utilities{z-index:6;bottom:3px}
+}

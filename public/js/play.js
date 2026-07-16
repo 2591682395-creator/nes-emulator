@@ -68,7 +68,7 @@
     elements.drawerBackdrop.hidden = !open;
     elements.drawerOpen.setAttribute("aria-expanded", String(open));
     document.body.classList.toggle("drawer-open", open);
-    if (open) setTimeout(() => elements.search.focus(), 180);
+    if (!open && document.activeElement === elements.search) elements.search.blur();
   }
   function syncResponsiveMode() {
     document.body.classList.toggle("mobile-play-mode", isMobileLayout());
