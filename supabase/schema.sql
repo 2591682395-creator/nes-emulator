@@ -61,6 +61,24 @@ CREATE TABLE IF NOT EXISTS save_states (
   UNIQUE(user_id, game_id, slot)
 );
 
+-- 长期云存档索引；二进制内容存放在私有 saves Storage bucket。
+CREATE TABLE IF NOT EXISTS game_saves (
+  id BIGSERIAL PRIMARY KEY,
+  user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  game_id INT NOT NULL REFERENCES games(id) ON DELETE CASCADE,
+  rom_hash VARCHAR(64) NOT NULL,
+  core VARCHAR(20) NOT NULL,
+  save_type VARCHAR(20) NOT NULL CHECK (save_type IN ('sram', 'state')),
+  slot VARCHAR(24) NOT NULL DEFAULT 'auto',
+  storage_path TEXT NOT NULL,
+  file_size BIGINT DEFAULT 0,
+  checksum VARCHAR(64),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, game_id, rom_hash, slot)
+);
+CREATE INDEX IF NOT EXISTS idx_game_saves_user_game ON game_saves(user_id, game_id);
+
 -- 5. 收藏表
 CREATE TABLE IF NOT EXISTS favorites (
   id SERIAL PRIMARY KEY,
@@ -138,6 +156,7 @@ ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE games ENABLE ROW LEVEL SECURITY;
 ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE save_states ENABLE ROW LEVEL SECURITY;
+ALTER TABLE game_saves ENABLE ROW LEVEL SECURITY;
 ALTER TABLE favorites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE system_settings ENABLE ROW LEVEL SECURITY;
@@ -161,6 +180,10 @@ CREATE POLICY "saves_select" ON save_states FOR SELECT USING (auth.uid() = user_
 CREATE POLICY "saves_insert" ON save_states FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "saves_update" ON save_states FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "saves_delete" ON save_states FOR DELETE USING (auth.uid() = user_id);
+CREATE POLICY "game_saves_select" ON game_saves FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "game_saves_insert" ON game_saves FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "game_saves_update" ON game_saves FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "game_saves_delete" ON game_saves FOR DELETE USING (auth.uid() = user_id);
 
 -- favorites: 用户只能访问自己的
 CREATE POLICY "favorites_select" ON favorites FOR SELECT USING (auth.uid() = user_id);

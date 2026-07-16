@@ -12,6 +12,10 @@ class Emulator {
     this.objectUrl = null;
     this.core = null;
     this.muted = false;
+    this.ready = false;
+    this.requestId = 0;
+    this.pendingRequests = new Map();
+    this.onReady = null;
   }
 
   init() {
@@ -28,10 +32,18 @@ class Emulator {
     window.addEventListener("message", (event) => {
       if (event.source !== this.frame.contentWindow || !event.data) return;
       if (event.data.type === "emulator-ready") {
+        this.ready = true;
         this.onStatusUpdate(`${this.getCoreLabel()} 核心已就绪`);
         this.frame.focus();
+        this.onReady?.();
       } else if (event.data.type === "emulator-error") {
         this.onStatusUpdate(`模拟器错误: ${event.data.message}`);
+      } else if (event.data.type === "emulator-response") {
+        const pending = this.pendingRequests.get(event.data.requestId);
+        if (!pending) return;
+        this.pendingRequests.delete(event.data.requestId);
+        clearTimeout(pending.timer);
+        event.data.error ? pending.reject(new Error(event.data.error)) : pending.resolve(event.data.payload);
       }
     });
 
@@ -41,6 +53,7 @@ class Emulator {
   loadROM(romData, fileName = "game.nes") {
     try {
       this.core = detectRomCore(romData, fileName);
+      this.ready = false;
       this.stop();
       this.objectUrl = URL.createObjectURL(
         new Blob([romData], { type: "application/octet-stream" }),
@@ -100,6 +113,22 @@ class Emulator {
   setFastForward(enabled) {
     this._control("fast-forward", Boolean(enabled));
   }
+
+  _request(action, value, timeout = 8000) {
+    if (!this.frame?.contentWindow) return Promise.reject(new Error("模拟器尚未启动"));
+    const requestId = `save-${Date.now()}-${++this.requestId}`;
+    return new Promise((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pendingRequests.delete(requestId);
+        reject(new Error("模拟器存档操作超时"));
+      }, timeout);
+      this.pendingRequests.set(requestId, { resolve, reject, timer });
+      this.frame.contentWindow.postMessage({ type: "emulator-control", action, value, requestId }, location.origin);
+    });
+  }
+
+  exportSave() { return this._request("export-save"); }
+  importSave(save) { return this._request("import-save", save); }
 
   stop() {
     if (this.objectUrl) {

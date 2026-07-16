@@ -27,6 +27,45 @@
       const allowedCores = new Set(["nes", "gba", "gb"]);
 
       const notify = (type, message) => parent.postMessage({ type, message }, location.origin);
+      const respond = (requestId, payload, error) => parent.postMessage({ type: "emulator-response", requestId, payload, error }, location.origin);
+      const bytesToBase64 = (bytes) => {
+        let binary = "";
+        const data = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+        for (let offset = 0; offset < data.length; offset += 0x8000) binary += String.fromCharCode(...data.subarray(offset, offset + 0x8000));
+        return btoa(binary);
+      };
+      const base64ToBytes = (base64) => Uint8Array.from(atob(base64), char => char.charCodeAt(0));
+      const exportPersistentSave = async (emulator) => {
+        const manager = emulator.gameManager;
+        const candidates = [
+          [manager, "getSaveFile"], [manager, "exportSave"], [emulator, "getSaveFile"], [emulator, "exportSave"]
+        ];
+        for (const [target, method] of candidates) {
+          if (typeof target?.[method] !== "function") continue;
+          const result = await target[method]();
+          const bytes = result?.data || result;
+          if (bytes && (bytes.byteLength || bytes.length)) return { type: "sram", data: bytesToBase64(bytes) };
+        }
+        if (typeof manager?.saveState === "function") {
+          const result = await manager.saveState();
+          const bytes = result?.data || result;
+          if (bytes && (bytes.byteLength || bytes.length)) return { type: "state", data: bytesToBase64(bytes) };
+        }
+        throw new Error("当前模拟器核心不支持导出存档");
+      };
+      const importPersistentSave = async (emulator, save) => {
+        const bytes = base64ToBytes(save.data);
+        const manager = emulator.gameManager;
+        const methods = save.type === "state"
+          ? [[manager, "loadState"], [manager, "loadSaveState"]]
+          : [[manager, "loadSaveFile"], [manager, "importSave"], [emulator, "loadSaveFile"], [emulator, "importSave"]];
+        for (const [target, method] of methods) {
+          if (typeof target?.[method] !== "function") continue;
+          await target[method](bytes);
+          return true;
+        }
+        throw new Error("当前模拟器核心不支持恢复此存档");
+      };
       if (!allowedCores.has(core) || !rom) {
         document.getElementById("game").innerHTML = '<div id="error">无效的模拟器核心或 ROM 地址</div>';
         notify("emulator-error", "无效的模拟器核心或 ROM 地址");
@@ -92,6 +131,12 @@
               }
               break;
             }
+            case "export-save":
+              exportPersistentSave(emulator).then(payload => respond(event.data.requestId, payload)).catch(error => respond(event.data.requestId, null, error.message));
+              break;
+            case "import-save":
+              importPersistentSave(emulator, event.data.value).then(() => respond(event.data.requestId, { restored: true })).catch(error => respond(event.data.requestId, null, error.message));
+              break;
             case "key": {
               const code = event.data.value?.code;
               const pressed = Boolean(event.data.value?.pressed);

@@ -15,13 +15,18 @@
     drawerClose: document.getElementById("closeGameDrawer"), drawerBackdrop: document.getElementById("drawerBackdrop"),
     mobileHeader: document.getElementById("mobilePlayHeader"), headerToggle: document.getElementById("mobileHeaderToggle"),
     headerCollapse: document.getElementById("collapseMobileHeader"), controlMenu: document.getElementById("controlMenu"),
-    menuOpen: document.getElementById("openControlMenu"), menuClose: document.getElementById("closeControlMenu")
+    menuOpen: document.getElementById("openControlMenu"), menuClose: document.getElementById("closeControlMenu"),
+    saveAccount: document.getElementById("btnSaveAccount"), saveStatus: document.getElementById("saveAccountStatus"),
+    saveDialog: document.getElementById("saveLoginDialog"), saveLoginForm: document.getElementById("saveLoginForm"),
+    saveDialogClose: document.getElementById("closeSaveLogin"), saveLoginMessage: document.getElementById("saveLoginMessage")
   };
   const emulator = new Emulator({
     canvas: elements.screen,
     onStatusUpdate: status => { elements.status.textContent = status; },
     onFPS: status => { elements.fps.textContent = status; }
   });
+  const saveManager = new PersistentSaveManager({ emulator, onStatus: message => { elements.status.textContent = message; } });
+  saveManager.start();
   const drawerDesktopParent = elements.drawer.parentNode;
   const drawerDesktopNextSibling = elements.drawer.nextSibling;
   let games = [], loaded = false, running = false, muted = false, fastForward = false, toastTimer;
@@ -43,6 +48,11 @@
     elements.fast.textContent = fastForward ? "» 取消加速" : "» 加速";
     elements.fast.classList.toggle("is-active", fastForward);
     elements.fast.setAttribute("aria-pressed", String(fastForward));
+  }
+  function updateSaveAccount() {
+    const user = JSON.parse(localStorage.getItem("user_data") || localStorage.getItem("admin_user") || "null");
+    elements.saveStatus.textContent = user ? `${user.nickname || user.username} · 云存档` : "本地存档";
+    elements.saveAccount.textContent = user ? "退出云存档" : "登录云存档";
   }
   function setConsoleStyle(style, announce = true) {
     if (isMobileLayout()) style = "psp";
@@ -136,13 +146,14 @@
       const data = await response.arrayBuffer();
       const disposition = response.headers.get("content-disposition") || "";
       const filename = decodeURIComponent(disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1] || game.rom_path || game.title);
-      finishLoading(data, filename, game.title);
+      await finishLoading(data, filename, game.title, game.id);
     } catch (error) {
       console.error(error);
       toast(`加载失败：${error.message}`);
     }
   }
-  function finishLoading(data, filename, label) {
+  async function finishLoading(data, filename, label, gameId = null) {
+    await saveManager.setGame({ gameId, romData: data, core: detectRomCore(data, filename), title: label });
     if (!emulator.loadROM(data, filename)) { toast("无法识别这个 ROM 文件"); return; }
     loaded = true;
     running = true;
@@ -150,6 +161,11 @@
     elements.romName.textContent = label;
     updateControls();
     toast(`已装入《${label}》`);
+    emulator.onReady = async () => {
+      emulator.onReady = null;
+      const restored = await saveManager.restore().catch(error => { console.warn("存档恢复失败:", error); return false; });
+      if (restored) toast("已恢复上次游戏进度");
+    };
   }
   function pressControl(button, code) {
     if (!controlCodes.has(code) || button.classList.contains("is-pressed")) return;
@@ -232,6 +248,23 @@
   elements.headerCollapse.addEventListener("click", () => setMobileHeader(false));
   elements.menuOpen.addEventListener("click", () => setControlMenu(!elements.controlMenu.classList.contains("is-open")));
   elements.menuClose.addEventListener("click", () => setControlMenu(false));
+  elements.saveAccount.addEventListener("click", () => {
+    if (saveManager.token()) {
+      localStorage.removeItem("user_token"); localStorage.removeItem("user_data");
+      updateSaveAccount(); toast("已退出云存档，本地存档仍会保留");
+    } else { setControlMenu(false); elements.saveDialog.showModal(); }
+  });
+  elements.saveDialogClose.addEventListener("click", () => elements.saveDialog.close());
+  elements.saveLoginForm.addEventListener("submit", async event => {
+    event.preventDefault(); elements.saveLoginMessage.textContent = "正在登录...";
+    try {
+      const response = await fetch("/api/auth/login", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ username: document.getElementById("saveUsername").value, password: document.getElementById("savePassword").value }) });
+      const payload = await response.json();
+      if (!response.ok || payload.code !== 0) throw new Error(payload.message || "登录失败");
+      localStorage.setItem("user_token", payload.data.token); localStorage.setItem("user_data", JSON.stringify(payload.data.user));
+      elements.saveDialog.close(); updateSaveAccount(); toast("云存档登录成功"); saveManager.flush();
+    } catch (error) { elements.saveLoginMessage.textContent = error.message; }
+  });
   document.addEventListener("keydown", event => { if (event.key === "Escape") { setDrawer(false); setControlMenu(false); setMobileHeader(false); } });
   window.addEventListener("resize", syncResponsiveMode);
   window.addEventListener("orientationchange", () => setTimeout(syncResponsiveMode, 120));
@@ -248,7 +281,7 @@
   elements.list.addEventListener("pointerup", handleGameSelection);
   elements.list.addEventListener("click", handleGameSelection);
   elements.search.addEventListener("input", event => renderList(event.target.value));
-  elements.romFile.addEventListener("change", async event => { const file = event.target.files[0]; if (file) finishLoading(await file.arrayBuffer(), file.name, file.name); });
+  elements.romFile.addEventListener("change", async event => { const file = event.target.files[0]; if (file) await finishLoading(await file.arrayBuffer(), file.name, file.name); });
   elements.pause.addEventListener("click", () => { running ? emulator.pause() : emulator.start(); running = !running; updateControls(); });
   elements.reset.addEventListener("click", () => { emulator.reset(); running = true; updateControls(); toast("游戏已重置"); });
   elements.mute.addEventListener("click", () => { muted = emulator.toggleMute(); updateControls(); });
@@ -261,5 +294,6 @@
   bindConsoleControls();
   emulator.init();
   updateControls();
+  updateSaveAccount();
   loadLibrary();
 })();

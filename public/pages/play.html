@@ -69,13 +69,14 @@
             <button class="console-key action-a" data-game-key="KeyZ" aria-label="X 键">□<small>X</small></button>
           </div>
         </div>
-        <div class="machine-utilities" id="controlMenu"><div class="tool-menu-title"><span>快捷菜单</span><button id="closeControlMenu" aria-label="关闭快捷菜单">×</button></div><button id="btnPause" disabled>PAUSE</button><button id="btnReset" disabled>↻ 重置</button><button id="btnMute" disabled>♪ 声音</button><button id="btnFastForward" class="toggle-tool" disabled aria-pressed="false">» 加速</button><button id="btnFullscreen" disabled>全屏</button></div>
+        <div class="machine-utilities" id="controlMenu"><div class="tool-menu-title"><span>快捷菜单</span><button id="closeControlMenu" aria-label="关闭快捷菜单">×</button></div><div class="save-account"><span id="saveAccountStatus">本地存档</span><button id="btnSaveAccount">登录云存档</button></div><button id="btnPause" disabled>PAUSE</button><button id="btnReset" disabled>↻ 重置</button><button id="btnMute" disabled>♪ 声音</button><button id="btnFastForward" class="toggle-tool" disabled aria-pressed="false">» 加速</button><button id="btnFullscreen" disabled>全屏</button></div>
       </section>
 
       <aside class="help-panel"><span class="section-kicker">操作指南</span><h2>实体按键</h2><p class="control-status"><span></span>机身按钮已连接</p><dl class="key-list"><div><dt>移动</dt><dd><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></dd></div><div><dt>A / B</dt><dd><kbd>X</kbd><kbd>Z</kbd></dd></div><div><dt>开始 / 选择</dt><dd><kbd>Enter</kbd><kbd>Shift</kbd></dd></div></dl><p class="help-note">可以直接点击或触摸掌机按钮。键盘操作时，对应的机身按键也会同步下沉。</p></aside>
     </div>
   </main>
   <div class="toast" id="toast" role="status"></div>
-  <script src="/js/emulator.js"></script><script src="/js/play.js"></script>
+  <dialog class="save-login-dialog" id="saveLoginDialog"><form id="saveLoginForm"><button type="button" class="dialog-close" id="closeSaveLogin" aria-label="关闭">×</button><span class="section-kicker">CLOUD SAVE</span><h2>登录云存档</h2><p>登录后可在不同设备继续游戏。</p><label>用户名或邮箱<input id="saveUsername" autocomplete="username" required></label><label>密码<input id="savePassword" type="password" autocomplete="current-password" required></label><button class="btn btn-primary" type="submit">登录并同步</button><p class="login-message" id="saveLoginMessage"></p></form></dialog>
+  <script src="/js/emulator.js"></script><script src="/js/save-manager.js"></script><script src="/js/play.js"></script>
 </body>
 </html>

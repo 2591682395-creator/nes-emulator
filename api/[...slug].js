@@ -112,6 +112,12 @@ module.exports = async function handler(req, res) {
     if (path.match(/^games\/saves\/\d+$/) && method === 'DELETE') {
       return await handleDeleteSave(req, res, path);
     }
+    if (path.match(/^cloud-saves\/\d+$/) && method === 'GET') {
+      return await handleGetCloudSave(req, res, path);
+    }
+    if (path.match(/^cloud-saves\/\d+$/) && method === 'PUT') {
+      return await handlePutCloudSave(req, res, path);
+    }
 
     // ============================================
     // 分类路由
@@ -973,6 +979,56 @@ async function handleDeleteSave(req, res, path) {
   }
 
   return res.status(200).json(success(null, '存档已删除'));
+}
+
+async function handleGetCloudSave(req, res, path) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+  const gameId = Number(path.split('/')[1]);
+  const { rom_hash: romHash, slot = 'auto' } = req.query;
+  if (!romHash) return res.status(400).json(error('缺少 ROM 哈希'));
+
+  const { data: record, error: queryError } = await supabaseAdmin
+    .from('game_saves')
+    .select('*')
+    .eq('user_id', user.id)
+    .eq('game_id', gameId)
+    .eq('rom_hash', romHash)
+    .eq('slot', slot)
+    .maybeSingle();
+  if (queryError) return res.status(500).json(error('云存档查询失败', 500));
+  if (!record) return res.status(404).json(error('云存档不存在', 404));
+
+  const { data: file, error: downloadError } = await supabaseAdmin.storage.from('saves').download(record.storage_path);
+  if (downloadError || !file) return res.status(404).json(error('云存档文件不存在', 404));
+  const save = JSON.parse(Buffer.from(await file.arrayBuffer()).toString('utf8'));
+  return res.status(200).json(success({ ...record, save }));
+}
+
+async function handlePutCloudSave(req, res, path) {
+  const user = await requireAuth(req, res);
+  if (!user) return;
+  const gameId = Number(path.split('/')[1]);
+  const { rom_hash: romHash, core, slot = 'auto', save } = req.body || {};
+  if (!romHash || !core || !save?.type || !save?.data) return res.status(400).json(error('云存档数据不完整'));
+  if (save.data.length > 20 * 1024 * 1024) return res.status(413).json(error('存档文件过大', 413));
+
+  const safeSlot = String(slot).replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 24) || 'auto';
+  const storagePath = `${user.id}/${gameId}/${romHash}/${safeSlot}.json`;
+  const fileData = Buffer.from(JSON.stringify(save), 'utf8');
+  const checksum = crypto.createHash('sha256').update(fileData).digest('hex');
+  const { error: uploadError } = await supabaseAdmin.storage.from('saves').upload(storagePath, fileData, {
+    contentType: 'application/json', upsert: true,
+  });
+  if (uploadError) return res.status(500).json(error('云存档上传失败', 500));
+
+  const { data: record, error: upsertError } = await supabaseAdmin.from('game_saves').upsert({
+    user_id: user.id, game_id: gameId, rom_hash: romHash, core,
+    save_type: save.type, slot: safeSlot, storage_path: storagePath,
+    file_size: fileData.length, checksum, updated_at: new Date().toISOString(),
+  }, { onConflict: 'user_id,game_id,rom_hash,slot' }).select().single();
+  if (upsertError) return res.status(500).json(error('云存档索引更新失败', 500));
+  return res.status(200).json(success(record, '云存档已同步'));
 }
 
 // ============================================
