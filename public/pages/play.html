@@ -1,207 +1,45 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>开始游戏 - NES 红白机模拟器</title>
-  <link rel="stylesheet" href="/css/style.css">
-  <link rel="stylesheet" href="/css/nav.css">
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>游戏机｜童年游戏厅</title>
+  <link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/nav.css">
 </head>
-<body>
-  <!-- 导航栏 -->
-  <nav class="navbar">
-    <div class="nav-container">
-      <a href="/" class="nav-logo">🎮 NES 模拟器</a>
-      <div class="nav-links">
-        <a href="/" class="nav-link">首页</a>
-        <a href="/pages/categories.html" class="nav-link">游戏分类</a>
-        <a href="/pages/play.html" class="nav-link active">开始游戏</a>
-      </div>
-      <a href="/pages/admin-login.html" class="nav-admin">管理后台</a>
-    </div>
-  </nav>
+<body class="play-page">
+  <nav class="navbar" aria-label="主导航"><div class="nav-container">
+    <a href="/" class="nav-logo"><span class="logo-mark">8</span><span>童年游戏厅</span></a>
+    <div class="nav-links"><a href="/" class="nav-link">首页</a><a href="/pages/categories.html" class="nav-link">游戏分类</a><a href="/pages/play.html" class="nav-link active" aria-current="page">游戏机</a></div>
+    <a href="/pages/admin-login.html" class="nav-admin">管理入口</a>
+  </div></nav>
 
-  <!-- 主内容 -->
-  <main class="main-content">
+  <main class="main-content play-content">
+    <header class="play-heading"><div><span class="eyebrow">NOW PLAYING</span><h1>口袋游戏机</h1></div><p>从卡带架选择游戏，或装入你自己的 ROM。</p></header>
     <div class="play-layout">
-      <!-- 游戏选择侧边栏 -->
       <aside class="game-sidebar">
-        <div class="sidebar-header">
-          <h3>🎮 游戏列表</h3>
-        </div>
-        <div class="game-list" id="gameList">
-          <!-- 动态加载 -->
-        </div>
+        <div class="sidebar-header"><div><span class="status-dot"></span><h2>卡带架</h2></div><span id="libraryCount">0 款</span></div>
+        <label class="sidebar-search"><span>⌕</span><input type="search" id="gameSearch" placeholder="查找卡带..."></label>
+        <div class="game-list" id="gameList" aria-live="polite"><div class="list-message">正在整理卡带...</div></div>
       </aside>
 
-      <!-- 游戏主区域 -->
-      <div class="game-main">
-        <!-- 游戏信息 -->
-        <div class="game-info" id="gameInfo" style="display: none;">
-          <h2 id="gameTitle">-</h2>
-          <span class="game-category" id="gameCategory">-</span>
-          <span class="game-plays" id="gamePlays">0 次游玩</span>
+      <section class="game-machine" aria-label="网页游戏机">
+        <div class="machine-top"><div class="speaker"><i></i><i></i><i></i><i></i></div><div class="brand">PIXEL BOY <small>COLOR</small></div><span class="power-light">POWER</span></div>
+        <div class="screen-bezel">
+          <div class="game-info" id="gameInfo" hidden><h2 id="gameTitle">未选择游戏</h2><span id="gameCategory">等待装入</span><span id="gamePlays">0 次游玩</span></div>
+          <div class="screen-wrapper" id="screenWrapper"><canvas id="screen" width="256" height="240"></canvas><div class="screen-placeholder" id="placeholder"><div class="placeholder-pixels">▲</div><strong>INSERT GAME</strong><p>从左侧选择卡带<br>或加载本地 ROM</p></div></div>
+          <div class="screen-status"><span id="fpsDisplay">核心: --</span><span id="statusDisplay">等待装入卡带</span></div>
         </div>
-
-        <!-- 游戏画面区 -->
-        <div class="screen-wrapper" id="screenWrapper">
-          <canvas id="screen" width="256" height="240"></canvas>
-          <!-- 未加载 ROM 时的占位 -->
-          <div class="screen-placeholder" id="placeholder">
-            <div class="placeholder-icon">🕹️</div>
-            <p>请从左侧选择游戏或加载 ROM 文件</p>
-          </div>
+        <div class="machine-controls">
+          <div class="dpad-large" aria-hidden="true"><i></i></div>
+          <div class="center-controls"><label for="romFile" class="file-label">+ 本地 ROM</label><input type="file" id="romFile" accept=".nes,.gb,.gbc,.gba" hidden><span class="rom-name" id="romName">未选择文件</span><div><button id="btnStart" disabled>START</button><button id="btnPause" disabled>PAUSE</button></div></div>
+          <div class="action-controls"><button id="btnReset" disabled aria-label="重置游戏">B<small>重置</small></button><button id="btnMute" disabled aria-label="切换声音">A<small>声音</small></button></div>
         </div>
+        <button class="fullscreen-button" id="btnFullscreen" disabled>▣ 全屏游玩</button>
+      </section>
 
-        <!-- 控制面板 -->
-        <div class="controls">
-          <!-- ROM 加载 -->
-          <div class="control-group">
-            <label class="file-label" for="romFile">
-              📂 本地 ROM 文件
-            </label>
-            <input type="file" id="romFile" accept=".nes,.gb,.gbc,.gba" hidden>
-            <span class="rom-name" id="romName">未选择文件</span>
-          </div>
-
-          <!-- 功能按钮 -->
-          <div class="control-group buttons">
-            <button id="btnStart" disabled>▶ 开始</button>
-            <button id="btnPause" disabled>⏸ 暂停</button>
-            <button id="btnReset" disabled>🔄 重置</button>
-            <button id="btnMute" disabled>🔊 声音</button>
-            <button id="btnFullscreen" disabled>⛶ 全屏</button>
-          </div>
-
-          <!-- 状态信息 -->
-          <div class="control-group status">
-            <span id="fpsDisplay">FPS: --</span>
-            <span id="statusDisplay">就绪</span>
-          </div>
-        </div>
-
-        <!-- 键位说明 -->
-        <div class="keymap">
-          <h3>⌨️ 操作说明</h3>
-          <div class="keymap-tables">
-            <div class="keymap-player">
-              <h4>键盘控制</h4>
-              <table>
-                <tr><td>方向</td><td>↑ ↓ ← →</td></tr>
-                <tr><td>A</td><td>X</td></tr>
-                <tr><td>B</td><td>Z</td></tr>
-                <tr><td>Start</td><td>Enter</td></tr>
-                <tr><td>Select</td><td>Right Shift</td></tr>
-              </table>
-            </div>
-            <div class="keymap-player">
-              <h4>其他</h4>
-              <p>支持浏览器 Gamepad 手柄</p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <aside class="help-panel"><span class="section-kicker">操作指南</span><h2>键盘按键</h2><dl class="key-list"><div><dt>移动</dt><dd><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></dd></div><div><dt>A / B</dt><dd><kbd>X</kbd><kbd>Z</kbd></dd></div><div><dt>开始</dt><dd><kbd>Enter</kbd></dd></div><div><dt>选择</dt><dd><kbd>Shift</kbd></dd></div></dl><p class="help-note">也支持浏览器识别的游戏手柄。点击游戏画面后即可操作。</p></aside>
     </div>
   </main>
-
-  <!-- 错误提示弹窗 -->
-  <div class="toast" id="toast"></div>
-
-  <!-- EmulatorJS 多平台封装 -->
-  <script src="/js/emulator.js"></script>
-  <script src="/js/play.js"></script>
-
-  <script>
-    // 加载游戏列表
-    async function loadGameList() {
-      try {
-        const res = await fetch('/api/games?pageSize=50');
-        const data = await res.json();
-        if (data.code === 0 && data.data.list.length) {
-          document.getElementById('gameList').innerHTML = data.data.list.map(game => `
-            <div class="game-list-item" data-id="${game.id}" data-title="${game.title}"
-                 data-category="${game.category_name || '未分类'}" data-plays="${game.play_count || 0}">
-              <img src="${game.cover_path || '/uploads/covers/default.svg'}"
-                   alt="${game.title}" class="game-list-cover"
-                   onerror="this.src='/uploads/covers/default.svg'">
-              <div class="game-list-info">
-                <div class="game-list-title">${game.title}</div>
-                <div class="game-list-meta">${game.category_name || '未分类'}</div>
-              </div>
-            </div>
-          `).join('');
-
-          // 绑定点击事件
-          document.querySelectorAll('.game-list-item').forEach(item => {
-            item.addEventListener('click', () => {
-              document.querySelectorAll('.game-list-item').forEach(i => i.classList.remove('active'));
-              item.classList.add('active');
-              loadGameFromServer(item.dataset.id, item.dataset.title,
-                                 item.dataset.category, item.dataset.plays);
-            });
-          });
-
-          // 检查 URL 参数
-          const urlParams = new URLSearchParams(window.location.search);
-          const gameId = urlParams.get('id');
-          if (gameId) {
-            const target = document.querySelector(`.game-list-item[data-id="${gameId}"]`);
-            if (target) {
-              target.click();
-            }
-          }
-        }
-      } catch (e) {
-        console.error('加载游戏列表失败:', e);
-      }
-    }
-
-    // 从服务器加载游戏
-    async function loadGameFromServer(gameId, gameTitle, category, plays) {
-      // 更新游戏信息
-      document.getElementById('gameInfo').style.display = 'flex';
-      document.getElementById('gameTitle').textContent = gameTitle;
-      document.getElementById('gameCategory').textContent = category;
-      document.getElementById('gamePlays').textContent = `${plays} 次游玩`;
-
-      showToast(`正在加载: ${gameTitle}...`);
-
-      try {
-        const res = await fetch(`/api/games/${gameId}/download`);
-        if (!res.ok) throw new Error("下载失败");
-
-        const blob = await res.blob();
-        const arrayBuffer = await blob.arrayBuffer();
-
-        // 启动音频
-        await audio.start();
-
-        // 加载 ROM
-        const success = emulator.loadROM(arrayBuffer);
-        if (success) {
-          romLoaded = true;
-          currentGameId = gameId;
-          placeholder.classList.add("hidden");
-          romNameDisplay.textContent = gameTitle;
-          showToast(`已加载: ${gameTitle}`);
-          updateButtons();
-
-          // 自动开始
-          emulator.start();
-          input.start();
-          isRunning = true;
-          updateButtons();
-        } else {
-          showToast("ROM 加载失败");
-        }
-      } catch (e) {
-        console.error("加载游戏失败:", e);
-        showToast("加载失败: " + e.message);
-      }
-    }
-
-    // 初始化
-    loadGameList();
-  </script>
+  <div class="toast" id="toast" role="status"></div>
+  <script src="/js/emulator.js"></script><script src="/js/play.js"></script>
 </body>
 </html>

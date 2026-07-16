@@ -1,173 +1,91 @@
-/**
- * play.js - 游戏页面主入口
- * 初始化各模块，绑定 UI 事件
- */
 (function () {
   "use strict";
-
-  // ===== DOM 元素 =====
-  const screen = document.getElementById("screen");
-  const placeholder = document.getElementById("placeholder");
-  const romFileInput = document.getElementById("romFile");
-  const romNameDisplay = document.getElementById("romName");
-  const btnStart = document.getElementById("btnStart");
-  const btnPause = document.getElementById("btnPause");
-  const btnReset = document.getElementById("btnReset");
-  const btnMute = document.getElementById("btnMute");
-  const btnFullscreen = document.getElementById("btnFullscreen");
-  const fpsDisplay = document.getElementById("fpsDisplay");
-  const statusDisplay = document.getElementById("statusDisplay");
-  const toastEl = document.getElementById("toast");
-
-  // ===== 实例化模块 =====
-  const audio = new NESAudio();
+  const elements = {
+    screen: document.getElementById("screen"), placeholder: document.getElementById("placeholder"),
+    romFile: document.getElementById("romFile"), romName: document.getElementById("romName"),
+    start: document.getElementById("btnStart"), pause: document.getElementById("btnPause"),
+    reset: document.getElementById("btnReset"), mute: document.getElementById("btnMute"),
+    fullscreen: document.getElementById("btnFullscreen"), fps: document.getElementById("fpsDisplay"),
+    status: document.getElementById("statusDisplay"), toast: document.getElementById("toast"),
+    list: document.getElementById("gameList"), search: document.getElementById("gameSearch"),
+    count: document.getElementById("libraryCount"), info: document.getElementById("gameInfo"),
+    title: document.getElementById("gameTitle"), category: document.getElementById("gameCategory"),
+    plays: document.getElementById("gamePlays")
+  };
   const emulator = new Emulator({
-    canvas: screen,
-    audio: audio,
-    onStatusUpdate: (status) => {
-      statusDisplay.textContent = status;
-    },
-    onFPS: (fps) => {
-      fpsDisplay.textContent = `FPS: ${fps}`;
-    },
+    canvas: elements.screen,
+    onStatusUpdate: status => { elements.status.textContent = status; },
+    onFPS: status => { elements.fps.textContent = status; }
   });
-  const input = new InputManager(emulator);
+  let games = [];
+  let loaded = false;
+  let running = false;
+  let muted = false;
+  let toastTimer;
 
-  // ===== 状态 =====
-  let romLoaded = false;
-  let isRunning = false;
-  let isMuted = false;
-  let currentGameId = null;
-
-  // ===== Toast 提示 =====
-  let toastTimer = null;
-  window.showToast = function(message, duration = 2500) {
-    toastEl.textContent = message;
-    toastEl.classList.add("show");
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => {
-      toastEl.classList.remove("show");
-    }, duration);
+  const escape = value => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#039;");
+  function toast(message) {
+    elements.toast.textContent = message; elements.toast.classList.add("show");
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => elements.toast.classList.remove("show"), 2400);
+  }
+  function updateControls() {
+    [elements.start, elements.pause, elements.reset, elements.mute, elements.fullscreen].forEach(button => { button.disabled = !loaded; });
+    elements.pause.textContent = running ? "PAUSE" : "RESUME";
+    elements.mute.innerHTML = `${muted ? "A" : "A"}<small>${muted ? "静音" : "声音"}</small>`;
+  }
+  function renderList(filter = "") {
+    const keyword = filter.trim().toLowerCase();
+    const filtered = games.filter(game => String(game.title).toLowerCase().includes(keyword));
+    elements.list.innerHTML = filtered.length ? filtered.map(game => `<button type="button" class="game-list-item" data-id="${escape(game.id)}">
+      <img class="game-list-cover" src="${escape(game.cover_path || "/uploads/covers/default.svg")}" alt="" onerror="this.onerror=null;this.src='/uploads/covers/default.svg'">
+      <span class="game-list-info"><span class="game-list-title">${escape(game.title)}</span><span class="game-list-meta">${escape(game.category_name || "经典游戏")}</span></span>
+    </button>`).join("") : `<div class="list-message">没有找到这张卡带。</div>`;
+  }
+  async function loadLibrary() {
+    try {
+      const response = await fetch("/api/games?pageSize=50");
+      if (!response.ok) throw new Error("卡带目录请求失败");
+      const payload = await response.json();
+      games = payload?.code === 0 ? payload.data?.list || [] : [];
+      elements.count.textContent = `${games.length} 款`; renderList();
+      const gameId = new URLSearchParams(location.search).get("id");
+      if (gameId && games.some(game => String(game.id) === gameId)) selectGame(gameId);
+    } catch (error) {
+      console.warn("卡带目录加载失败:", error);
+      elements.list.innerHTML = `<div class="list-message">卡带架暂时无法读取，你仍可加载本地 ROM。</div>`;
+    }
+  }
+  async function selectGame(id) {
+    const game = games.find(item => String(item.id) === String(id));
+    if (!game) return;
+    elements.list.querySelectorAll(".game-list-item").forEach(item => item.classList.toggle("active", item.dataset.id === String(id)));
+    elements.info.hidden = false; elements.title.textContent = game.title;
+    elements.category.textContent = game.category_name || "经典游戏";
+    elements.plays.textContent = `${Number(game.play_count) || 0} 次游玩`;
+    toast(`正在装入《${game.title}》...`);
+    try {
+      const response = await fetch(`/api/games/${encodeURIComponent(id)}/download`);
+      if (!response.ok) throw new Error("ROM 下载失败");
+      const data = await response.arrayBuffer();
+      const disposition = response.headers.get("content-disposition") || "";
+      const filename = decodeURIComponent(disposition.match(/filename\*=UTF-8''([^;]+)/i)?.[1] || game.rom_path || game.title);
+      finishLoading(data, filename, game.title);
+    } catch (error) { console.error(error); toast(`加载失败：${error.message}`); }
+  }
+  function finishLoading(data, filename, label) {
+    if (!emulator.loadROM(data, filename)) { toast("无法识别这个 ROM 文件"); return; }
+    loaded = true; running = true; elements.placeholder.classList.add("hidden");
+    elements.romName.textContent = label; updateControls(); toast(`已装入《${label}》`);
   }
 
-  // ===== 按钮状态更新 =====
-  window.updateButtons = function() {
-    btnStart.disabled = !romLoaded;
-    btnPause.disabled = !romLoaded;
-    btnReset.disabled = !romLoaded;
-    btnMute.disabled = !romLoaded;
-    btnFullscreen.disabled = !romLoaded;
-
-    btnPause.textContent = isRunning ? "⏸ 暂停" : "▶ 继续";
-    btnMute.textContent = isMuted ? "🔇 静音" : "🔊 声音";
-  }
-
-  // ===== ROM 文件加载 =====
-  romFileInput.addEventListener("change", (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    romNameDisplay.textContent = file.name;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const romData = event.target.result;
-
-      await audio.start();
-
-      const success = emulator.loadROM(romData);
-      if (success) {
-        romLoaded = true;
-        placeholder.classList.add("hidden");
-        showToast(`已加载: ${file.name}`);
-        updateButtons();
-
-        emulator.start();
-        input.start();
-        isRunning = true;
-        updateButtons();
-      } else {
-        showToast("ROM 加载失败，请检查文件格式");
-      }
-    };
-
-    reader.onerror = () => {
-      showToast("文件读取失败");
-    };
-
-    reader.readAsArrayBuffer(file);
-  });
-
-  // ===== 开始/继续 =====
-  btnStart.addEventListener("click", () => {
-    if (!romLoaded) return;
-    if (!isRunning) {
-      emulator.start();
-      input.start();
-      isRunning = true;
-      updateButtons();
-    }
-  });
-
-  // ===== 暂停 =====
-  btnPause.addEventListener("click", () => {
-    if (!romLoaded) return;
-    if (isRunning) {
-      emulator.pause();
-      isRunning = false;
-    } else {
-      emulator.start();
-      isRunning = true;
-    }
-    updateButtons();
-  });
-
-  // ===== 重置 =====
-  btnReset.addEventListener("click", () => {
-    if (!romLoaded) return;
-    emulator.reset();
-    if (!isRunning) {
-      emulator.start();
-      input.start();
-      isRunning = true;
-    }
-    showToast("游戏已重置");
-    updateButtons();
-  });
-
-  // ===== 静音 =====
-  btnMute.addEventListener("click", () => {
-    isMuted = audio.toggleMute();
-    updateButtons();
-  });
-
-  // ===== 全屏 =====
-  btnFullscreen.addEventListener("click", () => {
-    const wrapper = document.getElementById("screenWrapper");
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else {
-      wrapper.requestFullscreen().catch(() => {
-        showToast("全屏模式不可用");
-      });
-    }
-  });
-
-  document.addEventListener("fullscreenchange", () => {
-    btnFullscreen.textContent = document.fullscreenElement
-      ? "⛶ 退出全屏"
-      : "⛶ 全屏";
-  });
-
-  // ===== 防止方向键滚动页面 =====
-  window.addEventListener("keydown", (e) => {
-    if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Space"].includes(e.code)) {
-      e.preventDefault();
-    }
-  }, { passive: false });
-
-  // ===== 初始化 =====
-  emulator.init();
-  updateButtons();
-  console.log("NES 游戏页面已就绪");
+  elements.list.addEventListener("click", event => { const item = event.target.closest("[data-id]"); if (item) selectGame(item.dataset.id); });
+  elements.search.addEventListener("input", event => renderList(event.target.value));
+  elements.romFile.addEventListener("change", async event => { const file = event.target.files[0]; if (file) finishLoading(await file.arrayBuffer(), file.name, file.name); });
+  elements.start.addEventListener("click", () => { emulator.start(); running = true; updateControls(); });
+  elements.pause.addEventListener("click", () => { running ? emulator.pause() : emulator.start(); running = !running; updateControls(); });
+  elements.reset.addEventListener("click", () => { emulator.reset(); running = true; updateControls(); toast("游戏已重置"); });
+  elements.mute.addEventListener("click", () => { muted = emulator.toggleMute(); updateControls(); });
+  elements.fullscreen.addEventListener("click", () => document.fullscreenElement ? document.exitFullscreen() : document.getElementById("screenWrapper").requestFullscreen().catch(() => toast("当前浏览器不支持全屏")));
+  document.addEventListener("fullscreenchange", () => { elements.fullscreen.textContent = document.fullscreenElement ? "▣ 退出全屏" : "▣ 全屏游玩"; });
+  emulator.init(); updateControls(); loadLibrary();
 })();

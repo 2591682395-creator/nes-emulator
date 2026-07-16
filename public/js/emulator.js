@@ -51,7 +51,7 @@ class Emulator {
         rom: this.objectUrl,
         name: fileName.replace(/\.[^.]+$/, ""),
       });
-      this.frame.src = `player.html?${query}`;
+      this.frame.src = `/player.html?${query}`;
       this.frame.hidden = false;
       this.onFPS(`核心: ${this.getCoreLabel()}`);
       this.onStatusUpdate(`正在启动 ${this.getCoreLabel()} 核心...`);

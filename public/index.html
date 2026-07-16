@@ -3,150 +3,64 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NES 红白机模拟器 - 首页</title>
+  <meta name="description" content="在浏览器里重温 NES、GB、GBC 与 GBA 经典游戏。">
+  <title>童年游戏厅｜首页</title>
   <link rel="stylesheet" href="/css/style.css">
   <link rel="stylesheet" href="/css/nav.css">
 </head>
-<body>
-  <!-- 导航栏 -->
-  <nav class="navbar">
+<body class="home-page">
+  <nav class="navbar" aria-label="主导航">
     <div class="nav-container">
-      <a href="/" class="nav-logo">🎮 NES 模拟器</a>
+      <a href="/" class="nav-logo" aria-label="童年游戏厅首页"><span class="logo-mark">8</span><span>童年游戏厅</span></a>
       <div class="nav-links">
-        <a href="/" class="nav-link active">首页</a>
+        <a href="/" class="nav-link active" aria-current="page">首页</a>
         <a href="/pages/categories.html" class="nav-link">游戏分类</a>
-        <a href="/pages/play.html" class="nav-link">开始游戏</a>
+        <a href="/pages/play.html" class="nav-link">游戏机</a>
       </div>
-      <a href="/pages/admin-login.html" class="nav-admin">管理后台</a>
+      <a href="/pages/admin-login.html" class="nav-admin">管理入口</a>
     </div>
   </nav>
 
-  <!-- 主内容 -->
-  <main class="main-content">
-    <!-- Hero 区域 -->
-    <section class="hero">
+  <main>
+    <section class="hero pixel-world">
+      <div class="cloud cloud-one"></div><div class="cloud cloud-two"></div>
+      <div class="pixel-sun" aria-hidden="true"></div>
       <div class="hero-content">
-        <h1 class="hero-title">🎮 经典红白机游戏</h1>
-        <p class="hero-subtitle">在浏览器中重温童年经典，无需下载，即点即玩</p>
+        <span class="eyebrow">PRESS START · 回到放学后</span>
+        <h1>装好卡带，<br><span>再玩一局。</span></h1>
+        <p>红白机、掌机和熟悉的像素声，一键回到和朋友挤在电视机前的快乐时光。</p>
         <div class="hero-buttons">
-          <a href="/pages/play.html" class="btn btn-primary">开始游戏</a>
-          <a href="/pages/categories.html" class="btn btn-secondary">浏览游戏</a>
+          <a href="/pages/categories.html" class="btn btn-primary">挑选游戏 <span>→</span></a>
+          <a href="/pages/play.html" class="btn btn-secondary">打开游戏机</a>
         </div>
+        <div class="hero-hints"><span>↑↓←→ 移动</span><span>Z / X 按键</span><span>ENTER 开始</span></div>
       </div>
+      <div class="hero-console" aria-hidden="true">
+        <div class="console-screen"><span class="pixel-face">•ᴗ•</span><b>READY!</b></div>
+        <div class="console-controls"><i class="dpad"></i><i class="select-key"></i><i class="round-key key-a"></i><i class="round-key key-b"></i></div>
+      </div>
+      <div class="pixel-ground" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
     </section>
 
-    <!-- 热门游戏 -->
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">🔥 热门游戏</h2>
-        <a href="/pages/categories.html" class="view-all">查看全部 →</a>
-      </div>
-      <div class="game-grid" id="hotGames">
-        <!-- 动态加载 -->
-      </div>
+    <section class="marquee" aria-label="支持平台">
+      <span>★ NES 红白机</span><span>★ GAME BOY</span><span>★ GAME BOY COLOR</span><span>★ GAME BOY ADVANCE</span>
     </section>
 
-    <!-- 最新游戏 -->
-    <section class="section">
+    <section class="section featured-section">
       <div class="section-header">
-        <h2 class="section-title">🆕 最新游戏</h2>
-        <a href="/pages/categories.html" class="view-all">查看全部 →</a>
+        <div><span class="section-kicker">本周精选</span><h2 class="section-title">大家都在玩的经典</h2></div>
+        <a href="/pages/categories.html" class="text-link">全部游戏 →</a>
       </div>
-      <div class="game-grid" id="newGames">
-        <!-- 动态加载 -->
-      </div>
+      <div class="game-grid" id="hotGames" aria-live="polite"><div class="empty-state">正在翻找游戏卡带...</div></div>
     </section>
 
-    <!-- 游戏分类 -->
-    <section class="section">
-      <div class="section-header">
-        <h2 class="section-title">📂 游戏分类</h2>
-        <a href="/pages/categories.html" class="view-all">查看全部 →</a>
-      </div>
-      <div class="category-grid" id="categories">
-        <!-- 动态加载 -->
-      </div>
+    <section class="memory-strip">
+      <div class="memory-copy"><span class="section-kicker">童年存档</span><h2>那些游戏，<br>从来没有真正通关。</h2><p>不需要安装，选择收藏或上传本地 ROM，浏览器就是你的复古游戏机。</p></div>
+      <div class="memory-cards" aria-hidden="true"><div class="cartridge pink">01<span>冒险</span></div><div class="cartridge yellow">02<span>对战</span></div><div class="cartridge blue">03<span>探索</span></div></div>
     </section>
   </main>
 
-  <!-- 页脚 -->
-  <footer class="footer">
-    <p>© 2026 NES 红白机模拟器 - 在浏览器中重温经典</p>
-  </footer>
-
-  <script>
-    // 加载热门游戏
-    async function loadHotGames() {
-      try {
-        const res = await fetch('/api/games?pageSize=6');
-        const data = await res.json();
-        if (data.code === 0 && data.data.list.length) {
-          document.getElementById('hotGames').innerHTML = data.data.list.map(game => createGameCard(game)).join('');
-        }
-      } catch (e) {
-        console.error('加载游戏失败:', e);
-      }
-    }
-
-    // 加载最新游戏
-    async function loadNewGames() {
-      try {
-        const res = await fetch('/api/games?pageSize=6');
-        const data = await res.json();
-        if (data.code === 0 && data.data.list.length) {
-          document.getElementById('newGames').innerHTML = data.data.list.map(game => createGameCard(game)).join('');
-        }
-      } catch (e) {
-        console.error('加载游戏失败:', e);
-      }
-    }
-
-    // 加载分类
-    async function loadCategories() {
-      try {
-        const res = await fetch('/api/categories');
-        const data = await res.json();
-        if (data.code === 0 && data.data.length) {
-          document.getElementById('categories').innerHTML = data.data.map(cat => `
-            <a href="/pages/categories.html?cat=${cat.id}" class="category-card">
-              <span class="category-icon">${cat.icon}</span>
-              <span class="category-name">${cat.name}</span>
-              <span class="category-count">${cat.game_count} 款游戏</span>
-            </a>
-          `).join('');
-        }
-      } catch (e) {
-        console.error('加载分类失败:', e);
-      }
-    }
-
-    // 创建游戏卡片
-    function createGameCard(game) {
-      return `
-        <a href="/pages/play.html?id=${game.id}" class="game-card">
-          <div class="game-card-cover-wrapper">
-            <img class="game-card-cover"
-                 src="${game.cover_path || '/uploads/covers/default.svg'}"
-                 alt="${game.title}"
-                 onerror="this.src='/uploads/covers/default.svg'">
-            <div class="game-card-title-tag">
-              <span>${game.title}</span>
-            </div>
-          </div>
-          <div class="game-card-info">
-            <div class="game-card-meta">
-              <span class="game-card-tag">${game.category_name || '未分类'}</span>
-              <span>${game.play_count || 0} 次</span>
-            </div>
-          </div>
-        </a>
-      `;
-    }
-
-    // 初始化
-    loadHotGames();
-    loadNewGames();
-    loadCategories();
-  </script>
+  <footer class="footer"><span>© 2026 童年游戏厅</span><span>好好游戏，天天开心。</span></footer>
+  <script src="/js/home.js"></script>
 </body>
 </html>
