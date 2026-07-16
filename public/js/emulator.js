@@ -104,8 +104,13 @@ class Emulator {
     }
   }
 
-  buttonDown() {}
-  buttonUp() {}
+  buttonDown(keyCode) {
+    this._control("key", { code: keyCode, pressed: true });
+  }
+
+  buttonUp(keyCode) {
+    this._control("key", { code: keyCode, pressed: false });
+  }
 }
 
 function detectRomCore(romData, fileName = "") {

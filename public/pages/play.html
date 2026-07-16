@@ -13,7 +13,13 @@
   </div></nav>
 
   <main class="main-content play-content">
-    <header class="play-heading"><div><span class="eyebrow">NOW PLAYING</span><h1>口袋游戏机</h1></div><p>从卡带架选择游戏，或装入你自己的 ROM。</p></header>
+    <header class="play-heading">
+      <div><span class="eyebrow">NOW PLAYING</span><h1>选择你的掌机</h1></div>
+      <div class="console-switcher" role="group" aria-label="选择游戏机样式">
+        <button class="console-option active" data-console="pixel" aria-pressed="true"><span>▣</span> PIXEL BOY</button>
+        <button class="console-option" data-console="psp" aria-pressed="false"><span>◉</span> PSP</button>
+      </div>
+    </header>
     <div class="play-layout">
       <aside class="game-sidebar">
         <div class="sidebar-header"><div><span class="status-dot"></span><h2>卡带架</h2></div><span id="libraryCount">0 款</span></div>
@@ -21,22 +27,42 @@
         <div class="game-list" id="gameList" aria-live="polite"><div class="list-message">正在整理卡带...</div></div>
       </aside>
 
-      <section class="game-machine" aria-label="网页游戏机">
-        <div class="machine-top"><div class="speaker"><i></i><i></i><i></i><i></i></div><div class="brand">PIXEL BOY <small>COLOR</small></div><span class="power-light">POWER</span></div>
+      <section class="game-machine pixel-console" id="gameMachine" aria-label="Pixel Boy 网页游戏机">
+        <div class="machine-top"><div class="speaker"><i></i><i></i><i></i><i></i></div><div class="brand" id="machineBrand">PIXEL BOY <small>COLOR</small></div><span class="power-light">POWER</span></div>
+        <button class="psp-shoulder psp-shoulder-left console-key" data-game-key="KeyA" aria-label="L 肩键">L</button><button class="psp-shoulder psp-shoulder-right console-key" data-game-key="KeyS" aria-label="R 肩键">R</button>
         <div class="screen-bezel">
           <div class="game-info" id="gameInfo" hidden><h2 id="gameTitle">未选择游戏</h2><span id="gameCategory">等待装入</span><span id="gamePlays">0 次游玩</span></div>
           <div class="screen-wrapper" id="screenWrapper"><canvas id="screen" width="256" height="240"></canvas><div class="screen-placeholder" id="placeholder"><div class="placeholder-pixels">▲</div><strong>INSERT GAME</strong><p>从左侧选择卡带<br>或加载本地 ROM</p></div></div>
           <div class="screen-status"><span id="fpsDisplay">核心: --</span><span id="statusDisplay">等待装入卡带</span></div>
         </div>
+
         <div class="machine-controls">
-          <div class="dpad-large" aria-hidden="true"><i></i></div>
-          <div class="center-controls"><label for="romFile" class="file-label">+ 本地 ROM</label><input type="file" id="romFile" accept=".nes,.gb,.gbc,.gba" hidden><span class="rom-name" id="romName">未选择文件</span><div><button id="btnStart" disabled>START</button><button id="btnPause" disabled>PAUSE</button></div></div>
-          <div class="action-controls"><button id="btnReset" disabled aria-label="重置游戏">B<small>重置</small></button><button id="btnMute" disabled aria-label="切换声音">A<small>声音</small></button></div>
+          <div class="left-controls">
+            <div class="dpad-control" aria-label="方向键">
+              <button class="console-key dpad-up" data-game-key="ArrowUp" aria-label="上">▲</button>
+              <button class="console-key dpad-left" data-game-key="ArrowLeft" aria-label="左">◀</button>
+              <span class="dpad-center"></span>
+              <button class="console-key dpad-right" data-game-key="ArrowRight" aria-label="右">▶</button>
+              <button class="console-key dpad-down" data-game-key="ArrowDown" aria-label="下">▼</button>
+            </div>
+            <button class="analog-stick console-key" data-game-key="analog" aria-label="PSP 方向摇杆"></button>
+          </div>
+          <div class="center-controls">
+            <label for="romFile" class="file-label">+ 本地 ROM</label><input type="file" id="romFile" accept=".nes,.gb,.gbc,.gba" hidden><span class="rom-name" id="romName">未选择文件</span>
+            <div class="system-keys"><button class="console-key" data-game-key="ShiftRight">SELECT</button><button class="console-key" data-game-key="Enter">START</button></div>
+            <div class="utility-keys"><button id="btnPause" disabled>PAUSE</button><button id="btnFullscreen" disabled>全屏</button></div>
+          </div>
+          <div class="action-controls" aria-label="动作按键">
+            <button class="console-key action-y" data-game-key="KeyX" aria-label="Y 键">△<small>Y</small></button>
+            <button class="console-key action-x" data-game-key="KeyX" aria-label="A 键">○<small>A</small></button>
+            <button class="console-key action-b" data-game-key="KeyZ" aria-label="B 键">×<small>B</small></button>
+            <button class="console-key action-a" data-game-key="KeyZ" aria-label="X 键">□<small>X</small></button>
+          </div>
         </div>
-        <button class="fullscreen-button" id="btnFullscreen" disabled>▣ 全屏游玩</button>
+        <div class="machine-utilities"><button id="btnReset" disabled>↻ 重置</button><button id="btnMute" disabled>♪ 声音</button></div>
       </section>
 
-      <aside class="help-panel"><span class="section-kicker">操作指南</span><h2>键盘按键</h2><dl class="key-list"><div><dt>移动</dt><dd><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></dd></div><div><dt>A / B</dt><dd><kbd>X</kbd><kbd>Z</kbd></dd></div><div><dt>开始</dt><dd><kbd>Enter</kbd></dd></div><div><dt>选择</dt><dd><kbd>Shift</kbd></dd></div></dl><p class="help-note">也支持浏览器识别的游戏手柄。点击游戏画面后即可操作。</p></aside>
+      <aside class="help-panel"><span class="section-kicker">操作指南</span><h2>实体按键</h2><p class="control-status"><span></span>机身按钮已连接</p><dl class="key-list"><div><dt>移动</dt><dd><kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd></dd></div><div><dt>A / B</dt><dd><kbd>X</kbd><kbd>Z</kbd></dd></div><div><dt>开始 / 选择</dt><dd><kbd>Enter</kbd><kbd>Shift</kbd></dd></div></dl><p class="help-note">可以直接点击或触摸掌机按钮。键盘操作时，对应的机身按键也会同步下沉。</p></aside>
     </div>
   </main>
   <div class="toast" id="toast" role="status"></div>

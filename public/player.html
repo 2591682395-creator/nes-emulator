@@ -50,6 +50,31 @@
             case "pause": emulator.pause?.(); break;
             case "restart": emulator.restart?.(); break;
             case "mute": emulator.setVolume?.(event.data.value ? 0 : 1); break;
+            case "key": {
+              const code = event.data.value?.code;
+              const pressed = Boolean(event.data.value?.pressed);
+              if (!code) break;
+              const keyByCode = {
+                ArrowUp: "ArrowUp", ArrowDown: "ArrowDown", ArrowLeft: "ArrowLeft", ArrowRight: "ArrowRight",
+                KeyX: "x", KeyZ: "z", KeyA: "a", KeyS: "s", Enter: "Enter", ShiftRight: "Shift"
+              };
+              const keyCodeByCode = {
+                ArrowUp: 38, ArrowDown: 40, ArrowLeft: 37, ArrowRight: 39,
+                KeyX: 88, KeyZ: 90, KeyA: 65, KeyS: 83, Enter: 13, ShiftRight: 16
+              };
+              const keyboardEvent = new KeyboardEvent(pressed ? "keydown" : "keyup", {
+                key: keyByCode[code] || code,
+                code,
+                bubbles: true,
+                cancelable: true
+              });
+              Object.defineProperties(keyboardEvent, {
+                keyCode: { get: () => keyCodeByCode[code] || 0 },
+                which: { get: () => keyCodeByCode[code] || 0 }
+              });
+              document.dispatchEvent(keyboardEvent);
+              break;
+            }
           }
         } catch (error) {
           notify("emulator-error", error.message);
