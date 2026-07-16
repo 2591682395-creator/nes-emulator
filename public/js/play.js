@@ -10,7 +10,9 @@
     search: document.getElementById("gameSearch"), count: document.getElementById("libraryCount"),
     info: document.getElementById("gameInfo"), title: document.getElementById("gameTitle"),
     category: document.getElementById("gameCategory"), plays: document.getElementById("gamePlays"),
-    machine: document.getElementById("gameMachine"), brand: document.getElementById("machineBrand")
+    machine: document.getElementById("gameMachine"), brand: document.getElementById("machineBrand"),
+    drawer: document.getElementById("gameDrawer"), drawerOpen: document.getElementById("openGameDrawer"),
+    drawerClose: document.getElementById("closeGameDrawer"), drawerBackdrop: document.getElementById("drawerBackdrop")
   };
   const emulator = new Emulator({
     canvas: elements.screen,
@@ -34,6 +36,7 @@
     elements.mute.textContent = muted ? "♪ 开启声音" : "♪ 声音";
   }
   function setConsoleStyle(style, announce = true) {
+    if (isMobileLayout()) style = "psp";
     const isPsp = style === "psp";
     elements.machine.classList.toggle("psp-console", isPsp);
     elements.machine.classList.toggle("pixel-console", !isPsp);
@@ -46,6 +49,21 @@
     });
     localStorage.setItem("preferred-console", style);
     if (announce) toast(`已切换为 ${isPsp ? "PSP" : "Pixel Boy"} 外观`);
+  }
+  function isMobileLayout() {
+    return window.matchMedia("(max-width: 720px)").matches;
+  }
+  function setDrawer(open) {
+    elements.drawer.classList.toggle("is-open", open);
+    elements.drawerBackdrop.hidden = !open;
+    elements.drawerOpen.setAttribute("aria-expanded", String(open));
+    document.body.classList.toggle("drawer-open", open);
+    if (open) setTimeout(() => elements.search.focus(), 180);
+  }
+  function syncResponsiveMode() {
+    document.body.classList.toggle("mobile-play-mode", isMobileLayout());
+    if (isMobileLayout()) setConsoleStyle("psp", false);
+    else setDrawer(false);
   }
   function renderList(filter = "") {
     const keyword = filter.trim().toLowerCase();
@@ -73,6 +91,7 @@
   async function selectGame(id) {
     const game = games.find(item => String(item.id) === String(id));
     if (!game) return;
+    if (isMobileLayout()) setDrawer(false);
     elements.list.querySelectorAll(".game-list-item").forEach(item => item.classList.toggle("active", item.dataset.id === String(id)));
     elements.info.hidden = false;
     elements.title.textContent = game.title;
@@ -174,6 +193,11 @@
   }
 
   document.querySelectorAll(".console-option").forEach(button => button.addEventListener("click", () => setConsoleStyle(button.dataset.console)));
+  elements.drawerOpen.addEventListener("click", () => setDrawer(true));
+  elements.drawerClose.addEventListener("click", () => setDrawer(false));
+  elements.drawerBackdrop.addEventListener("click", () => setDrawer(false));
+  document.addEventListener("keydown", event => { if (event.key === "Escape") setDrawer(false); });
+  window.matchMedia("(max-width: 720px)").addEventListener?.("change", syncResponsiveMode);
   elements.list.addEventListener("click", event => { const item = event.target.closest("[data-id]"); if (item) selectGame(item.dataset.id); });
   elements.search.addEventListener("input", event => renderList(event.target.value));
   elements.romFile.addEventListener("change", async event => { const file = event.target.files[0]; if (file) finishLoading(await file.arrayBuffer(), file.name, file.name); });
@@ -183,7 +207,8 @@
   elements.fullscreen.addEventListener("click", () => document.fullscreenElement ? document.exitFullscreen() : document.getElementById("screenWrapper").requestFullscreen().catch(() => toast("当前浏览器不支持全屏")));
   document.addEventListener("fullscreenchange", () => { elements.fullscreen.textContent = document.fullscreenElement ? "退出全屏" : "全屏"; });
 
-  setConsoleStyle(localStorage.getItem("preferred-console") === "psp" ? "psp" : "pixel", false);
+  setConsoleStyle(isMobileLayout() ? "psp" : (localStorage.getItem("preferred-console") === "psp" ? "psp" : "pixel"), false);
+  syncResponsiveMode();
   bindConsoleControls();
   emulator.init();
   updateControls();
