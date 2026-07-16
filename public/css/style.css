@@ -117,8 +117,33 @@ body.mobile-play-mode #gameMachine.psp-console .machine-utilities{position:fixed
   body.mobile-play-mode #gameMachine.psp-console .machine-utilities{bottom:7px}
   body.mobile-play-mode .toast{left:50%;bottom:12px;transform:translate(-50%,25px) rotate(0)}body.mobile-play-mode .toast.show{transform:translate(-50%,0)}
 }
+/* Balanced mobile controls: larger D-pad, compact face buttons, both outside the screen. */
+@media(orientation:portrait){
+  body.mobile-play-mode #gameMachine.psp-console{padding-left:clamp(112px,20dvh,165px);padding-right:clamp(112px,20dvh,165px)}
+  body.mobile-play-mode #gameMachine.psp-console .left-controls{left:4px;width:108px}
+  body.mobile-play-mode #gameMachine.psp-console .dpad-control{margin:0 auto;transform:scale(.92);transform-origin:center}
+  body.mobile-play-mode #gameMachine.psp-console .analog-stick{width:42px;height:42px;margin:3px auto 0}
+  body.mobile-play-mode #gameMachine.psp-console .action-controls{right:4px;width:122px;height:122px;transform:translateY(-50%)}
+  body.mobile-play-mode #gameMachine.psp-console .action-controls button{width:48px;height:48px;font-size:15px}
+  body.mobile-play-mode #gameMachine.psp-console .action-controls .action-y{left:37px;top:0}
+  body.mobile-play-mode #gameMachine.psp-console .action-controls .action-x{right:0;top:37px}
+  body.mobile-play-mode #gameMachine.psp-console .action-controls .action-b{left:37px;bottom:0}
+  body.mobile-play-mode #gameMachine.psp-console .action-controls .action-a{left:0;top:37px}
+}
+@media(orientation:portrait) and (max-height:430px){
+  body.mobile-play-mode #gameMachine.psp-console{padding-left:104px;padding-right:104px}
+  body.mobile-play-mode #gameMachine.psp-console .dpad-control{transform:scale(.84)}
+  body.mobile-play-mode #gameMachine.psp-console .action-controls{right:1px;transform:translateY(-50%) scale(.9)}
+}
 body.mobile-play-mode .game-sidebar{z-index:130}
 body.mobile-play-mode .drawer-backdrop{z-index:120}
+body.mobile-play-mode>aside.game-sidebar{position:fixed;z-index:210;inset:0 auto 0 0;width:min(86vw,360px);height:100dvh;max-height:none;margin:0;transform:translateX(-105%) rotate(0deg);transform-origin:top left;visibility:hidden;overflow:hidden;pointer-events:none;background:#fffdf3}
+body.mobile-play-mode>aside.game-sidebar.is-open{transform:translateX(0) rotate(0deg);visibility:visible;pointer-events:auto}
+body.mobile-play-mode>aside.game-sidebar .sidebar-header{height:66px;padding:max(14px,env(safe-area-inset-top)) 14px 10px}
+body.mobile-play-mode>aside.game-sidebar .game-list{height:calc(100dvh - 66px);max-height:none;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch}
+body.mobile-play-mode>aside.game-sidebar .game-list-item{display:flex;width:100%;min-height:70px;transform:none;writing-mode:horizontal-tb}
+body.mobile-play-mode>aside.game-sidebar .game-list-item:active{transform:translateX(3px)}
+body.mobile-play-mode .drawer-backdrop{z-index:200}
 /* Full-viewport portrait rotation: fill the exchanged landscape canvas. */
 @media(orientation:portrait){
   body.mobile-play-mode .play-content{display:block;width:100dvh;height:100vw;padding:0;overflow:hidden;background:#11141a}

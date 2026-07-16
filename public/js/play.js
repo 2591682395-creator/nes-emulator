@@ -22,6 +22,8 @@
     onStatusUpdate: status => { elements.status.textContent = status; },
     onFPS: status => { elements.fps.textContent = status; }
   });
+  const drawerDesktopParent = elements.drawer.parentNode;
+  const drawerDesktopNextSibling = elements.drawer.nextSibling;
   let games = [], loaded = false, running = false, muted = false, fastForward = false, toastTimer;
   let lastTouchSelection = 0;
   const activePointers = new Map();
@@ -82,9 +84,18 @@
     if (!open && document.activeElement === elements.search) elements.search.blur();
   }
   function syncResponsiveMode() {
-    document.body.classList.toggle("mobile-play-mode", isMobileLayout());
-    if (isMobileLayout()) setConsoleStyle("psp", false);
-    else { setDrawer(false); setMobileHeader(false); }
+    const mobile = isMobileLayout();
+    document.body.classList.toggle("mobile-play-mode", mobile);
+    if (mobile) {
+      if (elements.drawer.parentNode !== document.body) document.body.appendChild(elements.drawer);
+      setConsoleStyle("psp", false);
+    } else {
+      setDrawer(false);
+      setMobileHeader(false);
+      if (elements.drawer.parentNode !== drawerDesktopParent) {
+        drawerDesktopParent.insertBefore(elements.drawer, drawerDesktopNextSibling);
+      }
+    }
   }
   function renderList(filter = "") {
     const keyword = filter.trim().toLowerCase();
