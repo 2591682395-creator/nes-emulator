@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>登录与注册｜童年游戏厅</title>
+  <link rel="stylesheet" href="/css/style.css"><link rel="stylesheet" href="/css/nav.css">
+</head>
+<body class="account-page">
+  <nav class="navbar" aria-label="主导航"><div class="nav-container">
+    <a href="/" class="nav-logo"><span class="logo-mark">8</span><span>童年游戏厅</span></a>
+    <div class="nav-links"><a href="/" class="nav-link">首页</a><a href="/pages/categories.html" class="nav-link">游戏分类</a><a href="/pages/play.html" class="nav-link">游戏机</a></div>
+    <a href="/pages/account.html" class="nav-admin active" data-account-link>登录 / 注册</a>
+  </div></nav>
+  <main class="account-main">
+    <section class="account-intro"><span class="eyebrow">PLAYER ACCOUNT</span><h1>欢迎回到<br><em>童年游戏厅</em></h1><p>登录后开启专属云存档，在手机、电脑之间继续你的冒险。</p><div class="account-perks"><span>✓ 独立用户存档</span><span>✓ 多设备云同步</span><span>✓ ROM 版本隔离</span></div></section>
+    <section class="account-panel" id="authPanel">
+      <div class="auth-tabs" role="tablist"><button class="active" data-tab="login">登录</button><button data-tab="register">注册</button></div>
+      <form id="loginForm" class="auth-form active"><h2>继续游戏</h2><label>用户名或邮箱<input name="username" autocomplete="username" required></label><label>密码<input name="password" type="password" autocomplete="current-password" minlength="6" required></label><button class="btn btn-primary" type="submit">登录账号</button></form>
+      <form id="registerForm" class="auth-form"><h2>创建玩家账号</h2><label>用户名<input name="username" autocomplete="username" minlength="3" maxlength="20" required></label><label>昵称<input name="nickname" maxlength="30" placeholder="游戏中显示的名字"></label><label>邮箱<input name="email" type="email" autocomplete="email" required></label><label>密码<input name="password" type="password" autocomplete="new-password" minlength="6" required></label><button class="btn btn-primary" type="submit">注册并登录</button></form>
+      <p class="auth-message" id="authMessage" role="status"></p>
+    </section>
+    <section class="profile-panel" id="profilePanel" hidden><span class="profile-avatar">P1</span><span class="section-kicker">PLAYER READY</span><h2 id="profileName">玩家</h2><p id="profileEmail"></p><div class="profile-actions"><a class="btn btn-primary" href="/pages/play.html">继续游戏</a><button class="btn btn-secondary" id="logoutButton">退出登录</button></div><p>你的游戏存档会在游玩时自动同步。</p></section>
+  </main>
+  <script src="/js/account.js"></script>
+</body>
+</html>

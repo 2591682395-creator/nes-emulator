@@ -20,7 +20,7 @@
   <nav class="navbar" aria-label="主导航"><div class="nav-container">
     <a href="/" class="nav-logo"><span class="logo-mark">8</span><span>童年游戏厅</span></a>
     <div class="nav-links"><a href="/" class="nav-link">首页</a><a href="/pages/categories.html" class="nav-link">游戏分类</a><a href="/pages/play.html" class="nav-link active" aria-current="page">游戏机</a></div>
-    <a href="/pages/admin-login.html" class="nav-admin">管理入口</a>
+    <a href="/pages/account.html" class="nav-admin" data-account-link>登录</a>
   </div></nav>
 
   <main class="main-content play-content">
@@ -77,6 +77,6 @@
   </main>
   <div class="toast" id="toast" role="status"></div>
   <dialog class="save-login-dialog" id="saveLoginDialog"><form id="saveLoginForm"><button type="button" class="dialog-close" id="closeSaveLogin" aria-label="关闭">×</button><span class="section-kicker">CLOUD SAVE</span><h2>登录云存档</h2><p>登录后可在不同设备继续游戏。</p><label>用户名或邮箱<input id="saveUsername" autocomplete="username" required></label><label>密码<input id="savePassword" type="password" autocomplete="current-password" required></label><button class="btn btn-primary" type="submit">登录并同步</button><p class="login-message" id="saveLoginMessage"></p></form></dialog>
-  <script src="/js/emulator.js"></script><script src="/js/save-manager.js"></script><script src="/js/play.js"></script>
+  <script src="/js/account-nav.js"></script><script src="/js/emulator.js"></script><script src="/js/save-manager.js"></script><script src="/js/play.js"></script>
 </body>
 </html>
