@@ -99,6 +99,15 @@
       updateGame: (id, data) => apiRequest(`/admin/games/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
       updateGameStatus: (id, status) => apiRequest(`/admin/games/${id}/status`, { method: 'PUT', body: JSON.stringify({ status }) }),
       deleteGame: (id) => apiRequest(`/admin/games/${id}`, { method: 'DELETE' }),
+      uploadGameCover: async (id, formData) => {
+        const token = localStorage.getItem('admin_token');
+        const res = await fetch(`${API_BASE}/games/${id}/cover`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` },
+          body: formData,
+        });
+        return res.json();
+      },
 
       // Categories
       getCategories: () => apiRequest('/categories'),
@@ -307,7 +316,20 @@
         try {
           let res;
           if (editing) {
+            // 编辑游戏 - 先更新基本信息
             res = await api.updateGame(editing.id, values);
+
+            // 如果有新封面图片，单独上传
+            if (res && res.code === 0 && values.cover_file && values.cover_file.file) {
+              const coverFormData = new FormData();
+              coverFormData.append('cover', values.cover_file.file);
+
+              const coverRes = await api.uploadGameCover(editing.id, coverFormData);
+
+              if (coverRes.code !== 0) {
+                antd.message.warning('基本信息已更新，但封面上传失败：' + (coverRes.message || '未知错误'));
+              }
+            }
           } else {
             // 新增游戏 - 需要上传 ROM
             const romFile = values.rom_file;
@@ -426,20 +448,23 @@
                 <Input placeholder="如：魂斗罗" />
               </Form.Item>
               {!editing && (
-                <>
-                  <Form.Item name="rom_file" label="ROM 文件" rules={[{ required: true, message: '请选择 ROM 文件' }]}
-                    valuePropName="file" getValueFromEvent={(e) => e && e.file ? { file: e.file } : e}>
-                    <Upload beforeUpload={() => false} maxCount={1} accept=".nes,.gb,.gbc,.gba">
-                      <Button>选择 NES / GB / GBC / GBA 文件</Button>
-                    </Upload>
-                  </Form.Item>
-                  <Form.Item name="cover_file" label="封面图片（可选）"
-                    valuePropName="file" getValueFromEvent={(e) => e && e.file ? { file: e.file } : e}>
-                    <Upload beforeUpload={() => false} maxCount={1} accept="image/*" listType="picture">
-                      <Button>选择封面图片</Button>
-                    </Upload>
-                  </Form.Item>
-                </>
+                <Form.Item name="rom_file" label="ROM 文件" rules={[{ required: true, message: '请选择 ROM 文件' }]}
+                  valuePropName="file" getValueFromEvent={(e) => e && e.file ? { file: e.file } : e}>
+                  <Upload beforeUpload={() => false} maxCount={1} accept=".nes,.gb,.gbc,.gba">
+                    <Button>选择 NES / GB / GBC / GBA 文件</Button>
+                  </Upload>
+                </Form.Item>
+              )}
+              <Form.Item name="cover_file" label={editing ? "修改封面图片（可选）" : "封面图片（可选）"}
+                valuePropName="file" getValueFromEvent={(e) => e && e.file ? { file: e.file } : e}>
+                <Upload beforeUpload={() => false} maxCount={1} accept="image/*" listType="picture">
+                  <Button>{editing ? "更换封面图片" : "选择封面图片"}</Button>
+                </Upload>
+              </Form.Item>
+              {editing && editing.cover_path && (
+                <Form.Item label="当前封面">
+                  <img src={editing.cover_path} alt="当前封面" style={{ maxWidth: '200px', maxHeight: '150px', border: '1px solid #ddd', borderRadius: '4px' }} />
+                </Form.Item>
               )}
               <Form.Item name="category_id" label="游戏分类">
                 <Select placeholder="选择分类" allowClear>

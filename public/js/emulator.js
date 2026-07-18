@@ -1,6 +1,6 @@
 /**
  * Multi-system EmulatorJS wrapper.
- * Supports NES, Game Boy, Game Boy Color and Game Boy Advance ROMs.
+ * Supports NES, SNES, Game Boy, Game Boy Color and Game Boy Advance ROMs.
  */
 class Emulator {
   constructor({ canvas, onStatusUpdate, onFPS }) {
@@ -77,7 +77,7 @@ class Emulator {
   }
 
   getCoreLabel() {
-    return { nes: "NES", gba: "GBA", gb: "GB/GBC" }[this.core] || "EmulatorJS";
+    return { nes: "NES", snes: "SNES", gba: "GBA", gb: "GB/GBC" }[this.core] || "EmulatorJS";
   }
 
   _control(action, value) {
@@ -151,6 +151,7 @@ function detectRomCore(romData, fileName = "") {
   if (extension === "nes") return "nes";
   if (extension === "gba") return "gba";
   if (extension === "gb" || extension === "gbc") return "gb";
+  if (extension === "sfc" || extension === "smc") return "snes";
 
   const bytes = new Uint8Array(romData);
   if (bytes.length >= 4 && bytes[0] === 0x4e && bytes[1] === 0x45 && bytes[2] === 0x53 && bytes[3] === 0x1a) {
@@ -164,7 +165,7 @@ function detectRomCore(romData, fileName = "") {
   ) {
     return "gb";
   }
-  throw new Error("仅支持 .nes、.gb、.gbc 和 .gba ROM");
+  throw new Error("仅支持 .nes、.sfc、.smc、.gb、.gbc 和 .gba ROM");
 }
 
 if (typeof module !== "undefined") {

@@ -26,3 +26,6 @@ previews/
 # Uploads (files stored in Supabase Storage)
 uploads/
 server/uploads/
+
+.vercel
+.env*

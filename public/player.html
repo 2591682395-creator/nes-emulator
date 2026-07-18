@@ -24,7 +24,7 @@
       const params = new URLSearchParams(location.search);
       const core = params.get("core");
       const rom = params.get("rom");
-      const allowedCores = new Set(["nes", "gba", "gb"]);
+      const allowedCores = new Set(["nes", "snes", "gba", "gb"]);
 
       const notify = (type, message) => parent.postMessage({ type, message }, location.origin);
       const respond = (requestId, payload, error) => parent.postMessage({ type: "emulator-response", requestId, payload, error }, location.origin);

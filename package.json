@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vercel dev",
     "deploy": "vercel --prod",
+    "import:qiniu": "node scripts/import-kof-games.js",
     "test": "node tests/emulator-core-detection.test.js"
   },
   "dependencies": {

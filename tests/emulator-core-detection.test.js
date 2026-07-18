@@ -6,6 +6,8 @@ assert.equal(detectRomCore(new ArrayBuffer(1), "game.nes"), "nes");
 assert.equal(detectRomCore(new ArrayBuffer(1), "game.gb"), "gb");
 assert.equal(detectRomCore(new ArrayBuffer(1), "game.gbc"), "gb");
 assert.equal(detectRomCore(new ArrayBuffer(1), "game.gba"), "gba");
+assert.equal(detectRomCore(new ArrayBuffer(1), "game.sfc"), "snes");
+assert.equal(detectRomCore(new ArrayBuffer(1), "game.smc"), "snes");
 
 const nesHeader = Uint8Array.from([0x4e, 0x45, 0x53, 0x1a]);
 assert.equal(detectRomCore(nesHeader.buffer), "nes");

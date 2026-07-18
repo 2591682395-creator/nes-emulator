@@ -2,8 +2,9 @@ const { supabase, supabaseAdmin } = require('../lib/supabase');
 const { requireAuth, requireAdmin, optionalAuth } = require('../lib/auth');
 const { success, error, paginated } = require('../lib/response');
 const crypto = require('crypto');
+const romStorage = require('../lib/rom-storage');
 
-const SUPPORTED_ROM_EXTENSIONS = new Set(['.nes', '.gb', '.gbc', '.gba']);
+const SUPPORTED_ROM_EXTENSIONS = new Set(['.nes', '.sfc', '.smc', '.gb', '.gbc', '.gba']);
 
 function getRomExtension(filename, data) {
   const extension = String(filename || '').toLowerCase().match(/\.[a-z0-9]+$/)?.[0];
@@ -17,7 +18,31 @@ function getRomExtension(filename, data) {
   if (bytes.length > 0x107 && bytes[0x104] === 0xce && bytes[0x105] === 0xed && bytes[0x106] === 0x66 && bytes[0x107] === 0x66) {
     return bytes[0x143] === 0x80 || bytes[0x143] === 0xc0 ? '.gbc' : '.gb';
   }
-  throw new Error('仅支持 .nes、.gb、.gbc 和 .gba ROM 文件');
+  throw new Error('仅支持 .nes、.sfc、.smc、.gb、.gbc 和 .gba ROM 文件');
+}
+
+async function uploadRom(fileName, data) {
+  const { error: uploadError } = await supabaseAdmin.storage
+    .from('roms')
+    .upload(fileName, data, { contentType: 'application/octet-stream' });
+  if (uploadError) throw uploadError;
+  return fileName;
+}
+
+async function getRomUrl(romPath) {
+  if (romStorage.isQiniuPath(romPath)) return romStorage.qiniuUrl(romPath);
+  const { data, error: urlError } = await supabaseAdmin.storage
+    .from('roms')
+    .createSignedUrl(romPath, 300);
+  if (urlError || !data) throw urlError || new Error('ROM not found');
+  return data.signedUrl;
+}
+
+async function deleteRom(romPath) {
+  // Files uploaded manually to Qiniu are managed in the Qiniu console.
+  if (romStorage.isQiniuPath(romPath)) return;
+  const { error: removeError } = await supabaseAdmin.storage.from('roms').remove([romPath]);
+  if (removeError) throw removeError;
 }
 
 module.exports = async function handler(req, res) {
@@ -530,13 +555,10 @@ async function handleUploadGame(req, res) {
 
   // 上传 ROM 文件
   const romFileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}${romExtension}`;
-  const { error: uploadError } = await supabaseAdmin.storage
-    .from('roms')
-    .upload(romFileName, romPart.data, {
-      contentType: 'application/octet-stream',
-    });
-
-  if (uploadError) {
+  let romPath;
+  try {
+    romPath = await uploadRom(romFileName, romPart.data);
+  } catch (uploadError) {
     console.error('ROM 上传错误:', uploadError);
     return res.status(500).json(error('ROM 文件上传失败', 500));
   }
@@ -581,7 +603,7 @@ async function handleUploadGame(req, res) {
       title,
       category_id,
       description,
-      rom_path: romFileName,
+      rom_path: romPath,
       cover_path: coverPath,
       file_size: romPart.data.length,
       file_md5: md5,
@@ -670,7 +692,7 @@ async function handleDeleteGame(req, res, path) {
   }
 
   if (game.rom_path) {
-    await supabaseAdmin.storage.from('roms').remove([game.rom_path]);
+    await deleteRom(game.rom_path);
   }
 
   const { error: deleteError } = await supabaseAdmin
@@ -769,11 +791,11 @@ async function handleDownloadGame(req, res, path) {
     return res.status(404).json(error('游戏不存在', 404));
   }
 
-  const { data: urlData, error: urlError } = await supabaseAdmin.storage
-    .from('roms')
-    .createSignedUrl(game.rom_path, 60);
-
-  if (urlError || !urlData) {
+  let signedUrl;
+  try {
+    signedUrl = await getRomUrl(game.rom_path);
+  } catch (urlError) {
+    console.error('ROM 下载地址生成失败:', urlError);
     return res.status(404).json(error('ROM 文件不存在', 404));
   }
 
@@ -782,7 +804,7 @@ async function handleDownloadGame(req, res, path) {
     .update({ play_count: (game.play_count || 0) + 1 })
     .eq('id', id);
 
-  return res.redirect(302, urlData.signedUrl);
+  return res.redirect(302, signedUrl);
 }
 
 async function handleUploadCover(req, res, path) {
@@ -1375,15 +1397,11 @@ async function handleAdminCreateGame(req, res) {
       return res.status(400).json(error(extensionError.message));
     }
     const fileName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}${extension}`;
-    const { error: uploadError } = await supabaseAdmin.storage
-      .from('roms')
-      .upload(fileName, romData, { contentType: 'application/octet-stream' });
-
-    if (uploadError) {
+    try {
+      romPath = await uploadRom(fileName, romData);
+    } catch (uploadError) {
       return res.status(500).json(error('ROM 文件上传失败', 500));
     }
-
-    romPath = fileName;
     fileSize = romData.length;
     md5 = crypto.createHash('md5').update(romData).digest('hex');
 
@@ -1476,7 +1494,7 @@ async function handleAdminDeleteGame(req, res, path) {
   }
 
   if (game.rom_path) {
-    await supabaseAdmin.storage.from('roms').remove([game.rom_path]);
+    await deleteRom(game.rom_path);
   }
 
   await supabaseAdmin.from('games').delete().eq('id', id);
